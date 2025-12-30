@@ -8,6 +8,10 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+# !!! ВОТ ОНО, ИСПРАВЛЕНИЕ !!!
+# Добавляем корневую директорию проекта в путь поиска модулей Python
+ENV PYTHONPATH /app
+
 # Копируем файл с зависимостями
 COPY requirements.txt .
 
@@ -18,5 +22,5 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Копируем все файлы проекта в контейнер
 COPY . .
 
-# Команда для запуска нашего приложения (бота и веб-сервера)
+# Команда для запуска нашего приложения
 CMD ["python", "main.py"]
