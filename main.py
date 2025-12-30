@@ -1,6 +1,12 @@
-import asyncio
 import sys
 import os
+
+# ---> ВОТ ЭТО ИСПРАВЛЕНИЕ <---
+# Добавляем корневую папку проекта в пути Python, чтобы он видел папки 'config', 'handlers' и т.д.
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# ---> КОНЕЦ ИСПРАВЛЕНИЯ <---
+
+import asyncio
 import uvicorn
 import threading
 from datetime import datetime
@@ -19,6 +25,9 @@ from services import price_service, swap_service
 from api.server import app as fastapi_app
 
 logger = structlog.get_logger()
+
+# Global variable to manage uvicorn server task
+server_task = None
 
 async def start_bot_async():
     """Асинхронная функция для запуска бота"""
@@ -39,7 +48,12 @@ def run_bot_in_thread():
     """Функция для запуска асинхронного бота в отдельном потоке"""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(start_bot_async())
+    try:
+        loop.run_until_complete(start_bot_async())
+    except asyncio.CancelledError:
+        logger.info("Bot thread cancelled.")
+    finally:
+        loop.close()
 
 async def create_tables():
     """Создает таблицы в БД"""
@@ -51,7 +65,8 @@ async def create_tables():
 if __name__ == "__main__":
     # Настраиваем логирование
     import logging
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    
     logger.info("Starting application...")
 
     # 1. Запускаем бота в отдельном фоновом потоке
@@ -62,4 +77,11 @@ if __name__ == "__main__":
     # 2. Основной поток запускает веб-сервер (то, что видит Render)
     port = int(os.getenv("PORT", 8000))
     logger.info(f"Starting web server on port {port}...")
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=port)
+    
+    try:
+        uvicorn.run(fastapi_app, host="0.0.0.0", port=port)
+    except KeyboardInterrupt:
+        logger.info("Web server stopped manually.")
+    finally:
+        # При остановке веб-сервера, поток с ботом тоже завершится, т.к. он daemon
+        logger.info("Application shutting down.")
