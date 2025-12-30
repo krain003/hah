@@ -2,6 +2,7 @@ import asyncio
 import sys
 import os
 import uvicorn
+import threading
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
@@ -13,71 +14,52 @@ import structlog
 from config.settings import settings
 from database.connection import db_manager
 from database.models import Base
-
-# Import all handlers
 from handlers import start_router, wallet_router, send_router, receive_router, swap_router, p2p_router, history_router, settings_router
-
-# Import services to initialize
 from services import price_service, swap_service
-
-# Import API app for uvicorn
 from api.server import app as fastapi_app
 
 logger = structlog.get_logger()
 
-# Global variable to manage uvicorn server task
-server_task = None
-
-async def on_startup(bot: Bot):
-    bot_info = await bot.get_me()
-    logger.info(f"Bot started: @{bot_info.username}")
+async def start_bot_async():
+    """Асинхронная функция для запуска бота"""
+    await db_manager.initialize()
+    await create_tables()
+    bot = Bot(token=settings.BOT_TOKEN.get_secret_value(), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = Dispatcher(storage=MemoryStorage())
     
-    # Start web server in the background
-    global server_task
-    port = int(os.getenv("PORT", 8000))
-    config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=port, log_level="info")
-    server = uvicorn.Server(config)
-    server_task = asyncio.create_task(server.serve())
-    logger.info(f"Web server started on port {port}")
+    # Регистрация роутеров
+    dp.include_router(start_router); dp.include_router(wallet_router); dp.include_router(send_router)
+    dp.include_router(receive_router); dp.include_router(swap_router); dp.include_router(p2p_router)
+    dp.include_router(history_router); dp.include_router(settings_router)
 
-async def on_shutdown(bot: Bot):
-    logger.info("Shutting down...")
-    if server_task:
-        server_task.cancel()
-    await price_service.close()
-    await swap_service.close()
-    await db_manager.close()
+    logger.info("Bot is starting polling...")
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), drop_pending_updates=True)
+
+def run_bot_in_thread():
+    """Функция для запуска асинхронного бота в отдельном потоке"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(start_bot_async())
 
 async def create_tables():
+    """Создает таблицы в БД"""
     async with db_manager.engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("DB tables checked/created")
 
-async def main():
-    await db_manager.initialize()
-    await create_tables()
-
-    bot = Bot(token=settings.BOT_TOKEN.get_secret_value(), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher(storage=MemoryStorage())
-
-    dp.include_router(start_router)
-    dp.include_router(wallet_router)
-    dp.include_router(send_router)
-    dp.include_router(receive_router)
-    dp.include_router(swap_router)
-    dp.include_router(p2p_router)
-    dp.include_router(history_router)
-    dp.include_router(settings_router)
-
-    dp.startup.register(on_startup)
-    dp.shutdown.register(on_shutdown)
-
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), drop_pending_updates=True)
 
 if __name__ == "__main__":
+    # Настраиваем логирование
     import logging
     logging.basicConfig(level=logging.INFO)
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Bot stopped manually.")
+    logger.info("Starting application...")
+
+    # 1. Запускаем бота в отдельном фоновом потоке
+    bot_thread = threading.Thread(target=run_bot_in_thread, daemon=True)
+    bot_thread.start()
+    logger.info("Bot thread started.")
+
+    # 2. Основной поток запускает веб-сервер (то, что видит Render)
+    port = int(os.getenv("PORT", 8000))
+    logger.info(f"Starting web server on port {port}...")
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=port)
