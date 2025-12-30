@@ -1,4 +1,3 @@
-# handlers/__init__.py
 from .start import router as start_router
 from .wallet import router as wallet_router
 from .send import router as send_router
@@ -9,6 +8,12 @@ from .history import router as history_router
 from .settings import router as settings_router
 
 __all__ = [
-    "start_router", "wallet_router", "send_router", "receive_router",
-    "swap_router", "p2p_router", "history_router", "settings_router"
+    "start_router",
+    "wallet_router", 
+    "send_router",
+    "receive_router",
+    "swap_router",
+    "p2p_router",
+    "history_router",
+    "settings_router"
 ]
