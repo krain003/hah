@@ -1,87 +1,73 @@
 import sys
 import os
-
-# ---> ВОТ ЭТО ИСПРАВЛЕНИЕ <---
-# Добавляем корневую папку проекта в пути Python, чтобы он видел папки 'config', 'handlers' и т.д.
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-# ---> КОНЕЦ ИСПРАВЛЕНИЯ <---
 
 import asyncio
 import uvicorn
 import threading
+import logging
+import structlog
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
-import structlog
 
 from config.settings import settings
 from database.connection import db_manager
 from database.models import Base
 from handlers import start_router, wallet_router, send_router, receive_router, swap_router, p2p_router, history_router, settings_router
-from services import price_service, swap_service
 from api.server import app as fastapi_app
 
-logger = structlog.get_logger()
-
-# Global variable to manage uvicorn server task
-server_task = None
+# Настройка логирования
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = structlog.get_logger(__name__)
 
 async def start_bot_async():
-    """Асинхронная функция для запуска бота"""
+    """Асинхронная функция для запуска бота."""
     await db_manager.initialize()
-    await create_tables()
+    async with db_manager.engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables checked/created.")
+
     bot = Bot(token=settings.BOT_TOKEN.get_secret_value(), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
     
-    # Регистрация роутеров
-    dp.include_router(start_router); dp.include_router(wallet_router); dp.include_router(send_router)
-    dp.include_router(receive_router); dp.include_router(swap_router); dp.include_router(p2p_router)
-    dp.include_router(history_router); dp.include_router(settings_router)
+    # Регистрация всех роутеров
+    dp.include_router(start_router)
+    dp.include_router(wallet_router)
+    dp.include_router(send_router)
+    dp.include_router(receive_router)
+    dp.include_router(swap_router)
+    dp.include_router(p2p_router)
+    dp.include_router(history_router)
+    dp.include_router(settings_router)
 
     logger.info("Bot is starting polling...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), drop_pending_updates=True)
 
 def run_bot_in_thread():
-    """Функция для запуска асинхронного бота в отдельном потоке"""
+    """Запускает асинхронного бота в отдельном потоке."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(start_bot_async())
-    except asyncio.CancelledError:
-        logger.info("Bot thread cancelled.")
     finally:
         loop.close()
 
-async def create_tables():
-    """Создает таблицы в БД"""
-    async with db_manager.engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("DB tables checked/created")
-
-
 if __name__ == "__main__":
-    # Настраиваем логирование
-    import logging
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-    
     logger.info("Starting application...")
 
-    # 1. Запускаем бота в отдельном фоновом потоке
+    # 1. Запускаем бота в фоновом потоке.
     bot_thread = threading.Thread(target=run_bot_in_thread, daemon=True)
     bot_thread.start()
-    logger.info("Bot thread started.")
+    logger.info("Bot thread has been started.")
 
-    # 2. Основной поток запускает веб-сервер (то, что видит Render)
+    # 2. Основной поток запускает веб-сервер, который видит Render.
     port = int(os.getenv("PORT", 8000))
-    logger.info(f"Starting web server on port {port}...")
-    
+    logger.info(f"Starting web server on http://0.0.0.0:{port}")
     try:
         uvicorn.run(fastapi_app, host="0.0.0.0", port=port)
-    except KeyboardInterrupt:
-        logger.info("Web server stopped manually.")
-    finally:
-        # При остановке веб-сервера, поток с ботом тоже завершится, т.к. он daemon
-        logger.info("Application shutting down.")
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Web server stopped.")
