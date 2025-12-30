@@ -1,0 +1,12 @@
+aiogram==3.13.1
+sqlalchemy[asyncio]==2.0.35
+aiosqlite==0.20.0
+web3==7.2.0
+eth-account==0.13.2
+mnemonic==0.20
+base58==2.2.0
+cryptography==43.0.1
+structlog==24.4.0
+pydantic-settings==2.5.2
+pyotp==2.9.0
+qrcode[pil]==7.4.2
