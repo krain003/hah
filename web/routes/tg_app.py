@@ -19,11 +19,13 @@ from web.database import WalletDB, TransactionDB, UserDB
 
 router = APIRouter()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates", "tg"))
+
+# FIXED: Point to main templates directory, not tg subdirectory
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
 def simple_hash(password: str) -> str:
-    """Simple password hash using SHA256 (for internal use only)"""
+    """Simple password hash using SHA256"""
     salt = secrets.token_hex(16)
     hash_obj = hashlib.sha256((salt + password).encode())
     return salt + ":" + hash_obj.hexdigest()
@@ -58,7 +60,7 @@ async def tg_app_home(request: Request):
     user = await get_or_create_user(tg_id=1, username="dev", first_name="Developer")
     
     if not user:
-        return templates.TemplateResponse("app.html", {
+        return templates.TemplateResponse("tg/app.html", {
             "request": request,
             "user": {"tg_first_name": "Guest", "id": 0},
             "wallets": [],
@@ -84,7 +86,7 @@ async def tg_app_home(request: Request):
                 "icon": network_config.icon,
                 "is_primary": w["is_primary"]
             })
-        except Exception as e:
+        except Exception:
             network_config = NETWORKS.get(w["network"])
             wallet_data.append({
                 "id": w["id"],
@@ -97,7 +99,7 @@ async def tg_app_home(request: Request):
                 "is_primary": w["is_primary"]
             })
     
-    return templates.TemplateResponse("app.html", {
+    return templates.TemplateResponse("tg/app.html", {
         "request": request,
         "user": user,
         "wallets": wallet_data,
@@ -109,7 +111,7 @@ async def tg_app_home(request: Request):
 @router.get("/create", response_class=HTMLResponse)
 async def tg_create_wallet_page(request: Request):
     """Create wallet page"""
-    return templates.TemplateResponse("wallet_create.html", {
+    return templates.TemplateResponse("tg/wallet_create.html", {
         "request": request,
         "networks": NETWORKS,
         "action": "select"
@@ -126,7 +128,7 @@ async def tg_create_wallet(request: Request):
     user = await get_or_create_user(tg_id=1)
     
     if not user:
-        return templates.TemplateResponse("wallet_create.html", {
+        return templates.TemplateResponse("tg/wallet_create.html", {
             "request": request,
             "networks": NETWORKS,
             "action": "select",
@@ -134,7 +136,7 @@ async def tg_create_wallet(request: Request):
         })
     
     if network not in NETWORKS:
-        return templates.TemplateResponse("wallet_create.html", {
+        return templates.TemplateResponse("tg/wallet_create.html", {
             "request": request,
             "networks": NETWORKS,
             "action": "select",
@@ -162,7 +164,7 @@ async def tg_create_wallet(request: Request):
             is_primary=is_primary
         )
         
-        return templates.TemplateResponse("wallet_create.html", {
+        return templates.TemplateResponse("tg/wallet_create.html", {
             "request": request,
             "networks": NETWORKS,
             "action": "success",
@@ -177,7 +179,7 @@ async def tg_create_wallet(request: Request):
         })
         
     except Exception as e:
-        return templates.TemplateResponse("wallet_create.html", {
+        return templates.TemplateResponse("tg/wallet_create.html", {
             "request": request,
             "networks": NETWORKS,
             "action": "select",
@@ -203,7 +205,7 @@ async def tg_wallet_detail(request: Request, wallet_id: int):
     transactions = await TransactionDB.get_user_transactions(user["id"], limit=20)
     wallet_transactions = [t for t in transactions if t["wallet_id"] == wallet_id]
     
-    return templates.TemplateResponse("wallet_detail.html", {
+    return templates.TemplateResponse("tg/wallet_detail.html", {
         "request": request,
         "user": user,
         "wallet": wallet,
@@ -229,7 +231,7 @@ async def tg_send_page(request: Request, wallet_id: int):
     balance = await wallet_manager.get_balance(wallet["network"], wallet["address"])
     network_config = NETWORKS.get(wallet["network"])
     
-    return templates.TemplateResponse("send.html", {
+    return templates.TemplateResponse("tg/send.html", {
         "request": request,
         "user": user,
         "wallet": wallet,
@@ -279,7 +281,7 @@ async def tg_send_transaction(request: Request, wallet_id: int):
             status="pending"
         )
         
-        return templates.TemplateResponse("send.html", {
+        return templates.TemplateResponse("tg/send.html", {
             "request": request,
             "user": user,
             "wallet": wallet,
@@ -290,7 +292,7 @@ async def tg_send_transaction(request: Request, wallet_id: int):
         
     except Exception as e:
         balance = await wallet_manager.get_balance(wallet["network"], wallet["address"])
-        return templates.TemplateResponse("send.html", {
+        return templates.TemplateResponse("tg/send.html", {
             "request": request,
             "user": user,
             "wallet": wallet,
@@ -315,7 +317,7 @@ async def tg_receive_page(request: Request, wallet_id: int):
     
     network_config = NETWORKS.get(wallet["network"])
     
-    return templates.TemplateResponse("receive.html", {
+    return templates.TemplateResponse("tg/receive.html", {
         "request": request,
         "user": user,
         "wallet": wallet,
