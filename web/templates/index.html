@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}NEXUS WALLET - Multi-Chain Crypto Wallet{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title">
+            <span class="gradient-text">Your Gateway to</span><br>
+            <span class="gradient-text-alt">Multi-Chain Crypto</span>
+        </h1>
+        <p class="hero-subtitle">
+            Manage all your cryptocurrencies in one secure place. 
+            Support for Ethereum, BSC, Polygon, TON, Solana, Bitcoin and more.
+        </p>
+        <div class="hero-buttons">
+            <a href="/auth/register" class="btn btn-primary btn-lg">
+                🚀 Get Started Free
+            </a>
+            <a href="/auth/login" class="btn btn-outline btn-lg">
+                Sign In
+            </a>
+        </div>
+    </div>
+    
+    <div class="hero-image">
+        <div class="wallet-preview">
+            <div class="preview-header">
+                <span>Total Balance</span>
+                <span class="preview-balance">$12,456.78</span>
+            </div>
+            <div class="preview-networks">
+                <div class="network-item">
+                    <span class="network-icon">⟠</span>
+                    <span>Ethereum</span>
+                    <span>2.45 ETH</span>
+                </div>
+                <div class="network-item">
+                    <span class="network-icon">💛</span>
+                    <span>BSC</span>
+                    <span>15.2 BNB</span>
+                </div>
+                <div class="network-item">
+                    <span class="network-icon">💎</span>
+                    <span>TON</span>
+                    <span>1,250 TON</span>
+                </div>
+                <div class="network-item">
+                    <span class="network-icon">◎</span>
+                    <span>Solana</span>
+                    <span>45.8 SOL</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features -->
+<section class="features">
+    <h2 class="section-title">Why Choose NEXUS?</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🔐</div>
+            <h3>Military-Grade Security</h3>
+            <p>Your private keys are encrypted with AES-256 and stored locally. We never have access to your funds.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🌐</div>
+            <h3>Multi-Chain Support</h3>
+            <p>Ethereum, BSC, Polygon, Arbitrum, TON, Solana, Bitcoin, TRON and more networks in one wallet.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Fast Transactions</h3>
+            <p>Send and receive crypto instantly with optimized gas estimation and real-time confirmations.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <h3>Use Anywhere</h3>
+            <p>Access your wallet from any device. Fully responsive design for desktop and mobile.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Supported Networks -->
+<section class="networks-section">
+    <h2 class="section-title">Supported Networks</h2>
+    <div class="networks-grid">
+        <div class="network-badge">⟠ Ethereum</div>
+        <div class="network-badge">💛 BNB Chain</div>
+        <div class="network-badge">💜 Polygon</div>
+        <div class="network-badge">🔵 Arbitrum</div>
+        <div class="network-badge">🔺 Avalanche</div>
+        <div class="network-badge">🔴 Optimism</div>
+        <div class="network-badge">🔵 Base</div>
+        <div class="network-badge">💎 TON</div>
+        <div class="network-badge">◎ Solana</div>
+        <div class="network-badge">₿ Bitcoin</div>
+        <div class="network-badge">🔴 TRON</div>
+    </div>
+</section>
+{% endblock %}

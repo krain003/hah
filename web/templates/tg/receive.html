@@ -1,0 +1,68 @@
+{% extends "tg/base.html" %}
+
+{% block title %}Receive {{ network.symbol if network else '' }} - NEXUS{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">📥</span>
+            <span>Receive {% if network %}{{ network.symbol }}{% endif %}</span>
+        </div>
+    </div>
+</div>
+
+<main class="main">
+    <a href="/tg/wallet/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="back-link">
+        ← Back
+    </a>
+    
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% else %}
+    
+    <div style="text-align: center;">
+        <h2 class="page-title">{{ wallet.name or network.name }}</h2>
+        <p class="page-subtitle">Scan QR code or copy address below</p>
+    </div>
+    
+    <!-- QR Code -->
+    <div class="qr-container">
+        <canvas id="qrcode"></canvas>
+    </div>
+    
+    <!-- Address -->
+    <div class="card">
+        <div class="card-title" style="margin-bottom: 12px;">Your Address</div>
+        <div class="address-display" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');">
+            <code>{{ wallet.address }}</code>
+        </div>
+        <button class="btn btn-primary" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');" style="margin-top: 12px;">
+            📋 Copy Address
+        </button>
+    </div>
+    
+    <div class="alert alert-warning" style="margin-top: 16px;">
+        💡 Only send <strong>{{ network.symbol }}</strong> on <strong>{{ network.name }}</strong> network to this address
+    </div>
+    
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const address = '{{ wallet.address }}';
+    QRCode.toCanvas(document.getElementById('qrcode'), address, {
+        width: 200,
+        margin: 2,
+        color: {
+            dark: '#000000',
+            light: '#ffffff'
+        }
+    });
+});
+</script>
+{% endblock %}

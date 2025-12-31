@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Send {% if network %}{{ network.symbol }}{% endif %} - NEXUS WALLET{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="form-card">
+        {% if success %}
+        <div class="success-message">
+            <div class="success-icon">✅</div>
+            <h2>Transaction Sent!</h2>
+            <p>Your transaction has been broadcast to the network</p>
+
+            <div class="tx-details">
+                <label>Transaction Hash</label>
+                <div class="address-display">
+                    <code>{{ tx_hash }}</code>
+                    <button class="btn-icon" onclick="copyToClipboard('{{ tx_hash }}')" title="Copy">📋</button>
+                </div>
+                {% if network %}
+                <a href="{{ network.explorer_url }}/tx/{{ tx_hash }}" target="_blank" class="btn btn-outline btn-sm">
+                    🔍 View on Explorer
+                </a>
+                {% endif %}
+            </div>
+
+            <a href="/wallet/dashboard" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+        {% else %}
+        <a href="/wallet/dashboard" class="back-link">← Back to Dashboard</a>
+
+        <h1>Send {% if network %}{{ network.symbol }}{% else %}Crypto{% endif %}</h1>
+        {% if network and wallet %}
+        <p>From: {{ network.icon }} {{ wallet.name or wallet.network | upper }}</p>
+        {% endif %}
+
+        <div class="balance-info">
+            <span>Available Balance:</span>
+            <strong>{{ balance|default('0') }} {% if network %}{{ network.symbol }}{% endif %}</strong>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/wallet/send/{{ wallet.id }}" class="send-form">
+            <div class="form-group">
+                <label for="to_address">Recipient Address</label>
+                <input
+                    type="text"
+                    id="to_address"
+                    name="to_address"
+                    required
+                    placeholder="Enter recipient address"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount {% if network %}({{ network.symbol }}){% endif %}</label>
+                <div class="amount-input">
+                    <input
+                        type="number"
+                        id="amount"
+                        name="amount"
+                        step="any"
+                        min="0"
+                        required
+                        placeholder="0.0"
+                    >
+                    <button type="button" class="btn btn-sm" onclick="setMaxAmount()">MAX</button>
+                </div>
+            </div>
+
+            <div class="gas-estimate" id="gas-estimate">
+                <!-- Gas estimate will be loaded here -->
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                📤 Send {% if network %}{{ network.symbol }}{% endif %}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const balance = parseFloat("{{ balance|default('0') }}") || 0;
+
+function setMaxAmount() {
+    document.getElementById('amount').value = balance;
+}
+</script>
+{% endblock %}

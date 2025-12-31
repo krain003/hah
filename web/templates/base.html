@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NEXUS WALLET{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <span class="logo-icon">💎</span>
+                    <span class="logo-text">NEXUS WALLET</span>
+                </a>
+                
+                <nav class="nav">
+                    {% if user %}
+                    <a href="/wallet/dashboard" class="nav-link">Dashboard</a>
+                    <a href="/wallet/create" class="nav-link">Create Wallet</a>
+                    <div class="user-menu">
+                        <span class="user-name">👤 {{ user.username }}</span>
+                        <a href="/auth/logout" class="btn btn-outline btn-sm">Logout</a>
+                    </div>
+                    {% else %}
+                    <a href="/auth/login" class="btn btn-outline">Login</a>
+                    <a href="/auth/register" class="btn btn-primary">Get Started</a>
+                    {% endif %}
+                </nav>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2025 NEXUS WALLET. Secure Multi-Chain Crypto Wallet.</p>
+        </footer>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,77 @@
+{% extends "tg/base.html" %}
+
+{% block title %}NEXUS WALLET{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">💎</span>
+            <span>NEXUS</span>
+        </div>
+        {% if user %}
+        <div class="user-greeting">
+            Hi, {{ user.tg_first_name or user.username }}!
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<main class="main">
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    
+    {% if wallets %}
+    <!-- Wallets List -->
+    <div class="card-header">
+        <span class="card-title">Your Wallets</span>
+    </div>
+    
+    {% for wallet in wallets %}
+    <a href="/tg/wallet/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="wallet-card-link">
+        <div class="wallet-card">
+            <div class="wallet-header">
+                <span class="wallet-icon">{{ wallet.icon }}</span>
+                <div class="wallet-info">
+                    <div class="wallet-name">{{ wallet.name }}</div>
+                    <div class="wallet-network">{{ wallet.network }}</div>
+                </div>
+                <div class="wallet-balance">
+                    <span class="balance-amount">{{ wallet.balance }}</span>
+                    <span class="balance-symbol">{{ wallet.symbol }}</span>
+                </div>
+            </div>
+            <div class="wallet-address" onclick="event.preventDefault(); copyToClipboard('{{ wallet.address }}'); haptic('medium');">
+                <code>{{ wallet.address[:10] }}...{{ wallet.address[-8:] }}</code>
+                <button class="btn-icon">📋</button>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+    
+    <!-- Quick Actions -->
+    <div class="action-buttons">
+        <a href="/tg/create?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="action-btn" onclick="haptic('light')">
+            <span class="action-btn-icon">➕</span>
+            <span>Add Wallet</span>
+        </a>
+        <a href="#" class="action-btn" onclick="haptic('light')">
+            <span class="action-btn-icon">📊</span>
+            <span>Portfolio</span>
+        </a>
+    </div>
+    
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-icon">💼</div>
+        <div class="empty-title">No Wallets Yet</div>
+        <div class="empty-text">Create your first crypto wallet to get started</div>
+        <a href="/tg/create?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="btn btn-primary" onclick="haptic('medium')">
+            ➕ Create Wallet
+        </a>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

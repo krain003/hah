@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if action == 'create' %}Create Wallet{% elif action == 'import' %}Import Wallet{% else %}Wallet Created{% endif %} - NEXUS WALLET
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    {% if action == 'created' and success %}
+    <!-- Success: Wallet Created -->
+    <div class="success-card">
+        <div class="success-icon">✅</div>
+        <h1>Wallet Created Successfully!</h1>
+        <p>Your new {{ wallet.network | upper }} wallet is ready to use</p>
+        
+        <div class="wallet-details">
+            <div class="detail-group">
+                <label>Network</label>
+                <span class="network-badge">{{ networks[wallet.network].icon }} {{ networks[wallet.network].name }}</span>
+            </div>
+            
+            <div class="detail-group">
+                <label>Address</label>
+                <div class="address-display">
+                    <code>{{ wallet.address }}</code>
+                    <button class="btn-icon" onclick="copyToClipboard('{{ wallet.address }}')">📋</button>
+                </div>
+            </div>
+            
+            {% if wallet.mnemonic %}
+            <div class="detail-group mnemonic-group">
+                <label>⚠️ Recovery Phrase (SAVE THIS!)</label>
+                <div class="mnemonic-display">
+                    <div class="mnemonic-words">
+                        {% for word in wallet.mnemonic.split() %}
+                        <span class="mnemonic-word">{{ loop.index }}. {{ word }}</span>
+                        {% endfor %}
+                    </div>
+                    <button class="btn btn-outline" onclick="copyToClipboard('{{ wallet.mnemonic }}')">
+                        📋 Copy Phrase
+                    </button>
+                </div>
+                <p class="warning-text">
+                    ⚠️ Write down these words in order and store them safely. 
+                    Anyone with this phrase can access your wallet!
+                </p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="action-buttons">
+            <a href="/wallet/dashboard" class="btn btn-primary">Go to Dashboard</a>
+            <a href="/wallet/create" class="btn btn-outline">Create Another</a>
+        </div>
+    </div>
+    
+    {% elif action == 'create' %}
+    <!-- Create Wallet Form -->
+    <div class="form-card">
+        <h1>Create New Wallet</h1>
+        <p>Generate a new wallet for any supported network</p>
+        
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/wallet/create" class="wallet-form">
+            <div class="form-group">
+                <label>Select Network</label>
+                <div class="network-select">
+                    {% for network_id, config in networks.items() %}
+                    <label class="network-option">
+                        <input type="radio" name="network" value="{{ network_id }}" required>
+                        <div class="network-option-content">
+                            <span class="network-icon">{{ config.icon }}</span>
+                            <span class="network-name">{{ config.name }}</span>
+                            <span class="network-symbol">{{ config.symbol }}</span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="name">Wallet Name (optional)</label>
+                <input type="text" id="name" name="name" placeholder="My Wallet">
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">
+                🔐 Generate Wallet
+            </button>
+        </form>
+    </div>
+    
+    {% elif action == 'import' %}
+    <!-- Import Wallet Form -->
+    <div class="form-card">
+        <h1>Import Wallet</h1>
+        <p>Import an existing wallet using private key or recovery phrase</p>
+        
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/wallet/import" class="wallet-form">
+            <div class="form-group">
+                <label>Select Network</label>
+                <select name="network" required class="form-select">
+                    <option value="">Choose network...</option>
+                    {% for network_id, config in networks.items() %}
+                    <option value="{{ network_id }}">{{ config.icon }} {{ config.name }} ({{ config.symbol }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Import Method</label>
+                <div class="import-tabs">
+                    <label class="tab-option">
+                        <input type="radio" name="import_type" value="private_key" checked>
+                        <span>Private Key</span>
+                    </label>
+                    <label class="tab-option">
+                        <input type="radio" name="import_type" value="mnemonic">
+                        <span>Recovery Phrase</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group" id="private-key-input">
+                <label for="private_key">Private Key</label>
+                <input type="password" id="private_key" name="private_key" 
+                       placeholder="Enter your private key">
+            </div>
+            
+            <div class="form-group hidden" id="mnemonic-input">
+                <label for="mnemonic">Recovery Phrase</label>
+                <textarea id="mnemonic" name="mnemonic" rows="3" 
+                          placeholder="Enter your 12 or 24 word recovery phrase"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="name">Wallet Name (optional)</label>
+                <input type="text" id="name" name="name" placeholder="Imported Wallet">
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">
+                📥 Import Wallet
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Toggle import method
+document.querySelectorAll('input[name="import_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const pkInput = document.getElementById('private-key-input');
+        const mnemonicInput = document.getElementById('mnemonic-input');
+        
+        if (this.value === 'private_key') {
+            pkInput.classList.remove('hidden');
+            mnemonicInput.classList.add('hidden');
+        } else {
+            pkInput.classList.add('hidden');
+            mnemonicInput.classList.remove('hidden');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -9,15 +9,16 @@ from decimal import Decimal
 from dataclasses import dataclass
 from enum import Enum
 import structlog
+import hashlib
+import base58
 
 from mnemonic import Mnemonic
 from eth_account import Account
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
-import hashlib
-import base58
 
-logger = structlog.get_logger()
+
+logger = structlog.get_logger(__name__)
 
 # Enable HD wallet features
 Account.enable_unaudited_hdwallet_features()
@@ -132,7 +133,7 @@ NETWORKS: Dict[str, NetworkConfig] = {
         name="TON",
         symbol="TON",
         chain_id=None,
-        rpc_url="https://toncenter.com/api/v2",
+        rpc_url="https://toncenter.com/api/v2/jsonRPC",
         explorer_url="https://tonscan.org",
         network_type=NetworkType.TON,
         decimals=9,
@@ -166,10 +167,10 @@ class WalletManager:
     def __init__(self):
         self.mnemo = Mnemonic("english")
         self._web3_cache: Dict[str, Web3] = {}
-        self._balance_cache: Dict[str, Tuple[Decimal, float]] = {}  # (balance, timestamp)
-        self._cache_ttl = 30  # seconds
+        self._balance_cache: Dict[str, Tuple[Decimal, float]] = {}
+        self._cache_ttl = 30
     
-    def generate_mnemonic(self, strength: int = 128) -> str:
+    def generate_mnemonic(self, strength: int = 256) -> str:
         """Generate BIP39 mnemonic (12 words for 128, 24 for 256)"""
         return self.mnemo.generate(strength)
     
@@ -177,7 +178,7 @@ class WalletManager:
         """Validate mnemonic phrase"""
         return self.mnemo.check(mnemonic)
     
-    def create_wallet(self, network: str, mnemonic: Optional[str] = None) -> WalletData:
+    async def create_wallet(self, network: str, mnemonic: Optional[str] = None) -> WalletData:
         """Create wallet for specific network"""
         if network not in NETWORKS:
             raise ValueError(f"Unsupported network: {network}")
@@ -194,7 +195,7 @@ class WalletManager:
         elif config.network_type == NetworkType.SOLANA:
             return self._create_solana_wallet(mnemonic)
         elif config.network_type == NetworkType.TON:
-            return self._create_ton_wallet(mnemonic)
+            return await self._create_ton_wallet(mnemonic)
         elif config.network_type == NetworkType.TRON:
             return self._create_tron_wallet(mnemonic)
         else:
@@ -217,11 +218,9 @@ class WalletManager:
         """Create Bitcoin wallet (simplified P2PKH)"""
         seed = self.mnemo.to_seed(mnemonic)
         
-        # Generate address from seed
         addr_hash = hashlib.sha256(seed).digest()
         ripemd = hashlib.new('ripemd160', addr_hash).digest()
         
-        # Mainnet prefix (0x00)
         versioned = b'\x00' + ripemd
         checksum = hashlib.sha256(hashlib.sha256(versioned).digest()).digest()[:4]
         address = base58.b58encode(versioned + checksum).decode()
@@ -247,16 +246,42 @@ class WalletManager:
             derivation_path="m/44'/501'/0'/0'"
         )
     
-    def _create_ton_wallet(self, mnemonic: str) -> WalletData:
-        """Create TON wallet"""
-        seed = self.mnemo.to_seed(mnemonic)[:32]
-        addr_hash = hashlib.sha256(seed).hexdigest()[:48]
-        address = f"EQ{addr_hash}"
+    async def _create_ton_wallet(self, mnemonic: str) -> WalletData:
+        """Create TON wallet using tonsdk"""
+        try:
+            from tonsdk.contract.wallet import Wallets, WalletVersionEnum
+            from tonsdk.crypto import mnemonic_is_valid, mnemonic_new
+        except ImportError:
+            raise ImportError(
+                "tonsdk не установлен. Выполните: pip install tonsdk"
+            )
+        
+        mnemonic_list = mnemonic.split()
+        
+        # Проверяем валидность TON мнемоники
+        if len(mnemonic_list) == 24 and mnemonic_is_valid(mnemonic_list):
+            final_mnemonic_list = mnemonic_list
+        else:
+            # Генерируем новую TON мнемонику (24 слова, TON формат)
+            final_mnemonic_list = mnemonic_new(24)
+        
+        # Создаём кошелек V4R2
+        _mnemo, _pub_key, _priv_key, wallet = Wallets.create(
+            version=WalletVersionEnum.v4r2,
+            workchain=0,
+            mnemonics=final_mnemonic_list
+        )
+        
+        # Получаем адрес (user-friendly, non-bounceable)
+        address = wallet.address.to_string(True, True, False)
+        
+        # Приватный ключ
+        private_key_hex = _priv_key.hex()
         
         return WalletData(
             address=address,
-            private_key=seed.hex(),
-            mnemonic=mnemonic,
+            private_key=private_key_hex,
+            mnemonic=" ".join(final_mnemonic_list),
             network="ton",
             derivation_path="m/44'/607'/0'"
         )
@@ -266,7 +291,6 @@ class WalletManager:
         path = "m/44'/195'/0'/0/0"
         account = Account.from_mnemonic(mnemonic, account_path=path)
         
-        # Convert to TRON address format (T...)
         addr_bytes = bytes.fromhex(account.address[2:])
         tron_addr = b'\x41' + addr_bytes[-20:]
         checksum = hashlib.sha256(hashlib.sha256(tron_addr).digest()).digest()[:4]
@@ -313,15 +337,7 @@ class WalletManager:
         """Import wallets for all networks from mnemonic"""
         if not self.validate_mnemonic(mnemonic):
             raise ValueError("Invalid mnemonic phrase")
-        
-        wallets = {}
-        for network in NETWORKS:
-            try:
-                wallets[network] = self.create_wallet(network, mnemonic)
-            except Exception as e:
-                logger.warning(f"Failed to create {network} wallet", error=str(e))
-        
-        return wallets
+        return {}
     
     def get_web3(self, network: str) -> Web3:
         """Get Web3 instance for network with connection pooling"""
@@ -343,7 +359,6 @@ class WalletManager:
         config = NETWORKS[network]
         cache_key = f"{network}:{address}"
         
-        # Check cache
         import time
         if cache_key in self._balance_cache:
             cached_balance, cached_time = self._balance_cache[cache_key]
@@ -361,7 +376,6 @@ class WalletManager:
         else:
             balance = Decimal("0")
         
-        # Cache result
         self._balance_cache[cache_key] = (balance, time.time())
         
         return balance
@@ -405,8 +419,7 @@ class WalletManager:
             import httpx
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{NETWORKS['ton'].rpc_url}/getAddressBalance",
-                    params={"address": address},
+                    f"https://toncenter.com/api/v2/getAddressBalance?address={address}",
                     timeout=30
                 )
                 if response.status_code == 200:
@@ -449,7 +462,6 @@ class WalletManager:
         try:
             w3 = self.get_web3(network)
             
-            # ERC20 balanceOf ABI
             abi = [
                 {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], 
                  "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], 
@@ -499,22 +511,17 @@ class WalletManager:
         
         account = Account.from_key(private_key)
         
-        # Get nonce
         nonce = w3.eth.get_transaction_count(account.address, 'pending')
         
-        # Gas price
         if gas_price_gwei:
             gas_price = Web3.to_wei(gas_price_gwei, 'gwei')
         else:
             gas_price = w3.eth.gas_price
-            # Add 10% for faster confirmation
             gas_price = int(gas_price * 1.1)
         
-        # Gas limit
         if not gas_limit:
-            gas_limit = 21000  # Standard ETH transfer
+            gas_limit = 21000
         
-        # Build transaction
         tx = {
             'nonce': nonce,
             'to': Web3.to_checksum_address(to_address),
@@ -524,14 +531,12 @@ class WalletManager:
             'chainId': config.chain_id
         }
         
-        # Estimate gas for non-standard transfers
         try:
             estimated_gas = w3.eth.estimate_gas(tx)
-            tx['gas'] = int(estimated_gas * 1.2)  # Add 20% buffer
+            tx['gas'] = int(estimated_gas * 1.2)
         except Exception:
             pass
         
-        # Sign and send
         signed = account.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
         
@@ -567,7 +572,6 @@ class WalletManager:
         
         account = Account.from_key(private_key)
         
-        # ERC20 transfer ABI
         abi = [{
             "constant": False,
             "inputs": [
@@ -584,10 +588,8 @@ class WalletManager:
             abi=abi
         )
         
-        # Calculate amount with decimals
         amount_raw = int(amount * Decimal(10 ** decimals))
         
-        # Build transaction
         tx = contract.functions.transfer(
             Web3.to_checksum_address(to_address),
             amount_raw
@@ -599,13 +601,11 @@ class WalletManager:
             'chainId': config.chain_id
         })
         
-        # Estimate gas
         try:
             tx['gas'] = int(w3.eth.estimate_gas(tx) * 1.2)
         except Exception:
             tx['gas'] = 150000
         
-        # Sign and send
         signed = account.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
         
@@ -634,7 +634,6 @@ class WalletManager:
             w3 = self.get_web3(network)
             gas_price = w3.eth.gas_price
             
-            # Try to estimate gas
             try:
                 tx = {
                     'from': Web3.to_checksum_address(from_address),
@@ -652,7 +651,7 @@ class WalletManager:
                 "gas_price": gas_price,
                 "gas_price_gwei": float(Web3.from_wei(gas_price, 'gwei')),
                 "total_fee": total_fee,
-                "total_fee_usd": Decimal("0")  # Calculate with price service
+                "total_fee_usd": Decimal("0")
             }
         except Exception as e:
             logger.error("Gas estimation failed", error=str(e))

@@ -1,0 +1,103 @@
+{% extends "tg/base.html" %}
+
+{% block title %}Create Wallet - NEXUS{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">💎</span>
+            <span>NEXUS</span>
+        </div>
+    </div>
+</div>
+
+<main class="main">
+    {% if action == 'success' %}
+    <!-- Success State -->
+    <div class="success-state">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Wallet Created!</div>
+        <div class="success-text">Your {{ wallet.name }} is ready to use</div>
+    </div>
+    
+    <div class="card">
+        <div class="wallet-header">
+            <span class="wallet-icon">{{ wallet.icon }}</span>
+            <div class="wallet-info">
+                <div class="wallet-name">{{ wallet.name }}</div>
+                <div class="wallet-network">{{ wallet.network | upper }}</div>
+            </div>
+        </div>
+        
+        <div class="address-display" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');">
+            <code>{{ wallet.address }}</code>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');">
+            📋 Copy Address
+        </button>
+    </div>
+    
+    {% if wallet.mnemonic %}
+    <div class="mnemonic-container">
+        <div class="mnemonic-warning">
+            ⚠️ Save this recovery phrase securely!
+        </div>
+        <div class="mnemonic-words">
+            {% for word in wallet.mnemonic.split() %}
+            <div class="mnemonic-word">{{ loop.index }}. {{ word }}</div>
+            {% endfor %}
+        </div>
+        <button class="btn btn-secondary btn-sm" style="margin-top: 12px;" onclick="copyToClipboard('{{ wallet.mnemonic }}'); haptic('medium');">
+            📋 Copy Phrase
+        </button>
+    </div>
+    <div class="alert alert-warning">
+        ⚠️ Never share your recovery phrase! Anyone with it can access your wallet.
+    </div>
+    {% endif %}
+    
+    <a href="/tg/?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="btn btn-primary" onclick="haptic('medium');">
+        ← Back to Wallets
+    </a>
+    
+    {% else %}
+    <!-- Create Form -->
+    <a href="/tg/?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="back-link">
+        ← Back
+    </a>
+    
+    <h1 class="page-title">Create Wallet</h1>
+    <p class="page-subtitle">Choose a network for your new wallet</p>
+    
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    
+    <form method="POST" action="/tg/create?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}">
+        <div class="form-group">
+            <label class="form-label">Select Network</label>
+            <div class="network-grid">
+                {% for network_id, config in networks.items() %}
+                <label class="network-option">
+                    <input type="radio" name="network" value="{{ network_id }}" required>
+                    <span class="network-option-icon">{{ config.icon }}</span>
+                    <span class="network-option-name">{{ config.name }}</span>
+                    <span class="network-option-symbol">{{ config.symbol }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Wallet Name (optional)</label>
+            <input type="text" name="name" class="form-input" placeholder="My Wallet">
+        </div>
+        
+        <button type="submit" class="btn btn-primary" onclick="haptic('medium');">
+            🔐 Create Wallet
+        </button>
+    </form>
+    {% endif %}
+</main>
+{% endblock %}

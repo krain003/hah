@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - NEXUS WALLET{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <!-- Welcome Section -->
+    <div class="dashboard-header">
+        <div>
+            <h1>Welcome, {{ user.username }}! 👋</h1>
+            <p class="text-muted">Manage your crypto wallets</p>
+        </div>
+        <div class="dashboard-actions">
+            <a href="/wallet/create" class="btn btn-primary">
+                ➕ Create Wallet
+            </a>
+            <a href="/wallet/import" class="btn btn-outline">
+                📥 Import Wallet
+            </a>
+        </div>
+    </div>
+    
+    <!-- Wallets Grid -->
+    <section class="wallets-section">
+        <h2 class="section-title">Your Wallets</h2>
+        
+        {% if wallets %}
+        <div class="wallets-grid">
+            {% for wallet in wallets %}
+            <div class="wallet-card">
+                <div class="wallet-header">
+                    <span class="wallet-icon">{{ wallet.icon }}</span>
+                    <div class="wallet-info">
+                        <h3>{{ wallet.name }}</h3>
+                        <span class="wallet-network">{{ wallet.network | upper }}</span>
+                    </div>
+                    {% if wallet.is_primary %}
+                    <span class="badge badge-primary">Primary</span>
+                    {% endif %}
+                </div>
+                
+                <div class="wallet-balance">
+                    <span class="balance-amount">{{ wallet.balance }}</span>
+                    <span class="balance-symbol">{{ wallet.symbol }}</span>
+                </div>
+                
+                <div class="wallet-address">
+                    <code>{{ wallet.address[:8] }}...{{ wallet.address[-6:] }}</code>
+                    <button class="btn-icon" onclick="copyToClipboard('{{ wallet.address }}')" title="Copy address">
+                        📋
+                    </button>
+                </div>
+                
+                <div class="wallet-actions">
+                    <a href="/wallet/send/{{ wallet.id }}" class="btn btn-sm btn-primary">
+                        📤 Send
+                    </a>
+                    <a href="/wallet/receive/{{ wallet.id }}" class="btn btn-sm btn-outline">
+                        📥 Receive
+                    </a>
+                    <form method="POST" action="/wallet/delete/{{ wallet.id }}" style="display: inline;" 
+                          onsubmit="return confirm('Are you sure you want to delete this wallet?')">
+                        <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">💼</div>
+            <h3>No Wallets Yet</h3>
+            <p>Create your first wallet to get started</p>
+            <a href="/wallet/create" class="btn btn-primary">Create Wallet</a>
+        </div>
+        {% endif %}
+    </section>
+    
+    <!-- Recent Transactions -->
+    <section class="transactions-section">
+        <h2 class="section-title">Recent Transactions</h2>
+        
+        {% if transactions %}
+        <div class="transactions-list">
+            {% for tx in transactions %}
+            <div class="transaction-item">
+                <div class="tx-icon">
+                    {% if tx.tx_type == 'send' %}📤{% else %}📥{% endif %}
+                </div>
+                <div class="tx-info">
+                    <span class="tx-type">{{ tx.tx_type | capitalize }}</span>
+                    <span class="tx-address">
+                        {% if tx.tx_type == 'send' %}
+                        To: {{ tx.to_address[:8] }}...{{ tx.to_address[-4:] }}
+                        {% else %}
+                        From: {{ tx.from_address[:8] }}...{{ tx.from_address[-4:] }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="tx-amount {% if tx.tx_type == 'send' %}negative{% else %}positive{% endif %}">
+                    {% if tx.tx_type == 'send' %}-{% else %}+{% endif %}{{ tx.amount }}
+                </div>
+                <div class="tx-status status-{{ tx.status }}">
+                    {{ tx.status }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state-small">
+            <p>No transactions yet</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

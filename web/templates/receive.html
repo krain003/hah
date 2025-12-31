@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Receive {{ network.symbol }} - NEXUS WALLET{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="form-card receive-card">
+        <a href="/wallet/dashboard" class="back-link">← Back to Dashboard</a>
+        
+        <h1>Receive {{ network.symbol }}</h1>
+        <p>{{ network.icon }} {{ wallet.name or wallet.network | upper }}</p>
+        
+        <div class="qr-container">
+            <div class="qr-code" id="qrcode"></div>
+        </div>
+        
+        <div class="address-section">
+            <label>Your Address</label>
+            <div class="address-display large">
+                <code id="wallet-address">{{ wallet.address }}</code>
+            </div>
+            <button class="btn btn-primary" onclick="copyToClipboard('{{ wallet.address }}')">
+                📋 Copy Address
+            </button>
+        </div>
+        
+        <div class="info-box">
+            <p>💡 Only send <strong>{{ network.symbol }}</strong> and tokens on the <strong>{{ network.name }}</strong> network to this address.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const address = '{{ wallet.address }}';
+    QRCode.toCanvas(document.getElementById('qrcode'), address, {
+        width: 200,
+        margin: 2,
+        color: {
+            dark: '#ffffff',
+            light: '#1a1a2e'
+        }
+    }, function(error) {
+        if (error) console.error(error);
+    });
+});
+</script>
+{% endblock %}

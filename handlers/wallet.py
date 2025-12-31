@@ -19,7 +19,7 @@ from blockchain.wallet_manager import wallet_manager, NETWORKS
 from security.encryption_manager import encryption_manager
 from locales.messages import get_text
 
-logger = structlog.get_logger()
+logger = structlog.get_logger(__name__)
 router = Router(name="wallet")
 
 
@@ -180,7 +180,6 @@ async def show_balances(callback: CallbackQuery):
             return
         
         text = get_text("wallet_balances_title", lang) + "\n\n"
-        total_usd = Decimal("0")
         
         for wallet in wallets:
             network = NETWORKS.get(wallet.network)
@@ -188,6 +187,7 @@ async def show_balances(callback: CallbackQuery):
                 continue
             
             try:
+                # Используем await, так как get_balance асинхронный
                 balance = await wallet_manager.get_balance(wallet.network, wallet.address)
             except Exception:
                 balance = Decimal("0")
@@ -217,48 +217,7 @@ async def show_balances(callback: CallbackQuery):
 async def refresh_balances(callback: CallbackQuery):
     """Refresh balances"""
     await callback.answer("🔄 Refreshing...", show_alert=False)
-    
-    try:
-        async with db_manager.session() as session:
-            user_repo = UserRepository()
-            user = await user_repo.get_by_telegram_id(session, callback.from_user.id)
-            lang = user.language_code or "en"
-            
-            wallet_repo = WalletRepository()
-            wallets = await wallet_repo.get_user_wallets(session, user.id)
-            
-            if not wallets:
-                return
-            
-            text = get_text("wallet_balances_title", lang) + "\n\n"
-            
-            for wallet in wallets:
-                network = NETWORKS.get(wallet.network)
-                if not network:
-                    continue
-                
-                try:
-                    balance = await wallet_manager.get_balance(wallet.network, wallet.address)
-                except Exception:
-                    balance = Decimal("0")
-                
-                short_addr = f"{wallet.address[:6]}...{wallet.address[-4:]}"
-                
-                text += f"{network.icon} <b>{network.name}</b>\n"
-                text += f"   💰 {balance:.6f} {network.symbol}\n"
-                text += f"   📋 <code>{short_addr}</code>\n\n"
-            
-            text += f"\n🕐 Updated: {datetime.now().strftime('%H:%M:%S')}"
-            
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔄 " + get_text("refresh", lang), callback_data="wallet:balances:refresh")],
-                [InlineKeyboardButton(text=get_text("btn_back", lang), callback_data="wallet")]
-            ])
-            
-            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            logger.error("Refresh failed", error=str(e))
+    await show_balances(callback)
 
 
 @router.callback_query(F.data == "wallet:create")
@@ -313,7 +272,8 @@ async def create_wallet_for_network(callback: CallbackQuery, state: FSMContext):
                         if existing:
                             continue
                         
-                        wallet_data = wallet_manager.create_wallet(net_id, mnemonic)
+                        # --- AWAIT HERE ---
+                        wallet_data = await wallet_manager.create_wallet(net_id, mnemonic)
                         
                         encrypted_key = encryption_manager.encrypt_private_key(wallet_data.private_key)
                         encrypted_mnemonic = encryption_manager.encrypt_mnemonic(mnemonic, user.pin_hash[:16])
@@ -350,7 +310,9 @@ async def create_wallet_for_network(callback: CallbackQuery, state: FSMContext):
                     return
                 
                 config = NETWORKS[network]
-                wallet_data = wallet_manager.create_wallet(network)
+                
+                # --- AWAIT HERE ---
+                wallet_data = await wallet_manager.create_wallet(network)
                 
                 encrypted_key = encryption_manager.encrypt_private_key(wallet_data.private_key)
                 encrypted_mnemonic = encryption_manager.encrypt_mnemonic(
@@ -395,7 +357,7 @@ async def create_wallet_for_network(callback: CallbackQuery, state: FSMContext):
             logger.error("Wallet creation failed", error=str(e))
             try:
                 await callback.message.edit_text(
-                    get_text("error_generic", lang),
+                    get_text("error_generic", lang) + f"\nError: {e}",
                     reply_markup=get_back_keyboard("wallet", lang),
                     parse_mode="HTML"
                 )
@@ -480,11 +442,23 @@ async def process_mnemonic_import(message: Message, state: FSMContext):
             user = await user_repo.get_by_telegram_id(session, message.from_user.id)
             wallet_repo = WalletRepository()
             
-            wallets_data = wallet_manager.import_from_mnemonic(mnemonic)
+            # --- ИМПОРТ ТОЖЕ СТАЛ АСИНХРОННЫМ? ЕСЛИ НЕТ, НО create_wallet ДА ---
+            # WalletManager.import_from_mnemonic остался синхронным, так как там цикл.
+            # Но внутри он вызывает create_wallet, который теперь async.
+            # Значит import_from_mnemonic тоже должен стать async.
+            # НО! Мы не меняли его в wallet_manager.py. Давай проверим wallet_manager.
+            
+            # В wallet_manager.py, import_from_mnemonic вызывает create_wallet.
+            # Если create_wallet стал async, то и import_from_mnemonic сломается без await.
+            # ЛУЧШЕЕ РЕШЕНИЕ: Вызывать create_wallet здесь вручную в цикле.
+            
             created_count = 0
             
-            for network, wallet_data in wallets_data.items():
+            for network in NETWORKS:
                 try:
+                    # --- AWAIT HERE ---
+                    wallet_data = await wallet_manager.create_wallet(network, mnemonic)
+                    
                     existing = await wallet_repo.get_by_address(session, wallet_data.address)
                     if existing:
                         continue
@@ -593,6 +567,9 @@ async def process_private_key_import(message: Message, state: FSMContext):
         pass
     
     try:
+        # Import from PK is usually synchronous in wallet_manager (no network calls for key generation)
+        # But let's check wallet_manager.py
+        # It IS synchronous in the previous code provided.
         wallet_data = wallet_manager.import_from_private_key(network, private_key)
         
         async with db_manager.session() as session:
