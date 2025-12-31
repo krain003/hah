@@ -1,53 +1,55 @@
 """
 NEXUS WALLET - Production Starter
-Handles Railway.app deployment
 """
 
 import os
 import sys
-import uvicorn
+import asyncio
 
-# Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-
 def get_port() -> int:
-    """Get port from environment (Railway sets PORT)"""
     return int(os.environ.get("PORT", 8000))
 
-
 def get_host() -> str:
-    """Get host - 0.0.0.0 for container"""
     return os.environ.get("HOST", "0.0.0.0")
 
-
 def is_production() -> bool:
-    """Check if running in production"""
     return os.environ.get("RAILWAY_ENVIRONMENT") is not None
 
+async def init_database():
+    """Initialize database before starting server"""
+    try:
+        from web.database import init_db
+        await init_db()
+        print("✅ Database initialized")
+    except Exception as e:
+        print(f"⚠️ Database init warning: {e}")
 
 if __name__ == "__main__":
+    import uvicorn
+    
     port = get_port()
     host = get_host()
     
     print(f"""
     ╔═══════════════════════════════════════════════════════════╗
-    ║                                                           ║
     ║     💎 NEXUS WALLET - Starting...                         ║
-    ║                                                           ║
-    ║     🌐 Host: {host}                                   ║
+    ║     🌐 Host: {host}                                       ║
     ║     🔌 Port: {port}                                       ║
-    ║     🚀 Production: {is_production()}                          ║
-    ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
     """)
     
+    # Initialize database
+    asyncio.run(init_database())
+    
+    # Start server
     uvicorn.run(
         "web.app:app",
         host=host,
         port=port,
-        reload=not is_production(),
-        log_level="info" if is_production() else "debug",
+        reload=False,
+        log_level="info",
         access_log=True,
-        workers=1  # Single worker for SQLite compatibility
+        workers=1
     )

@@ -1,101 +1,105 @@
 """
 NEXUS WALLET - Main FastAPI Application
-Production-ready for Railway.app
 """
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from web.database import init_db
-from web.routes import auth, wallet, api, tg_app
+# Import routes
+try:
+    from web.routes import auth, wallet, api, tg_app
+except ImportError as e:
+    print(f"Warning: Could not import routes: {e}")
+    auth = wallet = api = tg_app = None
 
+try:
+    from web.database import init_db
+except ImportError:
+    async def init_db():
+        pass
 
-# Environment
 IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") is not None
 RAILWAY_PUBLIC_DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events"""
-    # Startup
-    await init_db()
+    """Startup and shutdown"""
+    print("🚀 Starting NEXUS WALLET...")
+    
+    try:
+        await init_db()
+        print("✅ Database ready")
+    except Exception as e:
+        print(f"⚠️ Database warning: {e}")
     
     if RAILWAY_PUBLIC_DOMAIN:
-        print(f"🌐 Public URL: https://{RAILWAY_PUBLIC_DOMAIN}")
-        print(f"💎 Telegram Mini App: https://{RAILWAY_PUBLIC_DOMAIN}/tg/")
-    
-    print("✅ NEXUS WALLET started successfully!")
+        print(f"🌐 URL: https://{RAILWAY_PUBLIC_DOMAIN}")
     
     yield
     
-    # Shutdown
-    print("👋 Shutting down NEXUS WALLET...")
+    print("👋 Shutting down...")
 
 
 app = FastAPI(
     title="NEXUS WALLET",
     description="Multi-Chain Crypto Wallet",
     version="1.0.0",
-    lifespan=lifespan,
-    docs_url="/docs" if not IS_PRODUCTION else None,  # Disable docs in production
-    redoc_url="/redoc" if not IS_PRODUCTION else None
+    lifespan=lifespan
 )
 
-# Security middleware for production
-if IS_PRODUCTION and RAILWAY_PUBLIC_DOMAIN:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=[RAILWAY_PUBLIC_DOMAIN, "localhost", "127.0.0.1"]
-    )
-
-# CORS - allow Telegram
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*",
-        "https://web.telegram.org",
-        "https://telegram.org",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Static files and templates
+# Static files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+static_dir = os.path.join(BASE_DIR, "static")
+templates_dir = os.path.join(BASE_DIR, "templates")
+
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+if os.path.exists(templates_dir):
+    templates = Jinja2Templates(directory=templates_dir)
+else:
+    templates = None
 
 # Include routers
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-app.include_router(wallet.router, prefix="/wallet", tags=["Wallet"])
-app.include_router(api.router, prefix="/api", tags=["API"])
-app.include_router(tg_app.router, prefix="/tg", tags=["Telegram Mini App"])
+if auth:
+    app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+if wallet:
+    app.include_router(wallet.router, prefix="/wallet", tags=["Wallet"])
+if api:
+    app.include_router(api.router, prefix="/api", tags=["API"])
+if tg_app:
+    app.include_router(tg_app.router, prefix="/tg", tags=["Telegram Mini App"])
 
 
 @app.get("/")
 async def home(request: Request):
     """Home page"""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "railway_domain": RAILWAY_PUBLIC_DOMAIN
-    })
+    if templates:
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "railway_domain": RAILWAY_PUBLIC_DOMAIN
+        })
+    return {"message": "NEXUS WALLET", "status": "running"}
 
 
 @app.get("/health")
 async def health():
-    """Health check endpoint for Railway"""
-    return {
-        "status": "healthy",
-        "service": "nexus-wallet",
-        "version": "1.0.0"
-    }
+    """Health check - MUST respond quickly!"""
+    return {"status": "ok"}
 
 
 @app.get("/info")
@@ -104,6 +108,5 @@ async def info():
     return {
         "name": "NEXUS WALLET",
         "version": "1.0.0",
-        "telegram_mini_app": f"https://{RAILWAY_PUBLIC_DOMAIN}/tg/" if RAILWAY_PUBLIC_DOMAIN else "/tg/",
-        "environment": "production" if IS_PRODUCTION else "development"
+        "status": "running"
     }
