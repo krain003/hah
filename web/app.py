@@ -31,15 +31,15 @@ RAILWAY_PUBLIC_DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     
-    # 1. Start Database
+    # 1. Start Database (FORCE INIT)
+    logger.info("🛠️ Initializing Web Database...")
     await init_db()
-    logger.info("✅ Database initialized")
+    logger.info("✅ Web Database initialized")
     
     if RAILWAY_PUBLIC_DOMAIN:
         logger.info(f"🌐 URL: https://{RAILWAY_PUBLIC_DOMAIN}")
 
     # 2. Start Telegram Bot in background
-    # Мы создаем задачу, которая будет работать параллельно с сайтом
     bot_task = asyncio.create_task(start_bot())
     logger.info("🤖 Telegram Bot started in background")
     

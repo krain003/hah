@@ -98,7 +98,7 @@
 
 {% block scripts %}
 <script>
-const wallets = {{ wallets|tojson|safe if wallets else '[]' }};
+const wallets = JSON.parse('{{ wallets|tojson|safe if wallets else "[]" }}');
 let currentBalance = parseFloat('{{ wallets[0].balance if wallets else 0 }}') || 0;
 
 function setPercent(pct) {
