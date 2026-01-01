@@ -1,55 +1,51 @@
 """
 NEXUS WALLET - Production Starter
+Runs BOTH Web App and Telegram Bot
 """
 
 import os
 import sys
 import asyncio
+import uvicorn
+import structlog
 
+# Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from web.app import app
+from main import main as start_bot_polling
+
+logger = structlog.get_logger()
 
 def get_port() -> int:
     return int(os.environ.get("PORT", 8000))
 
-def get_host() -> str:
-    return os.environ.get("HOST", "0.0.0.0")
+async def start_web_server():
+    """Start FastAPI Web Server"""
+    config = uvicorn.Config(
+        app=app,
+        host="0.0.0.0",
+        port=get_port(),
+        log_level="info",
+        access_log=True
+    )
+    server = uvicorn.Server(config)
+    logger.info("🚀 Starting Web Server...")
+    await server.serve()
 
-def is_production() -> bool:
-    return os.environ.get("RAILWAY_ENVIRONMENT") is not None
-
-async def init_database():
-    """Initialize database before starting server"""
+async def start_services():
+    """Run both Bot and Web App concurrently"""
     try:
-        from web.database import init_db
-        await init_db()
-        print("✅ Database initialized")
+        # Запускаем и бота, и веб-сервер параллельно
+        await asyncio.gather(
+            start_bot_polling(),
+            start_web_server()
+        )
     except Exception as e:
-        print(f"⚠️ Database init warning: {e}")
+        logger.error(f"Critical error: {e}")
 
 if __name__ == "__main__":
-    import uvicorn
-    
-    port = get_port()
-    host = get_host()
-    
-    print(f"""
-    ╔═══════════════════════════════════════════════════════════╗
-    ║     💎 NEXUS WALLET - Starting...                         ║
-    ║     🌐 Host: {host}                                       ║
-    ║     🔌 Port: {port}                                       ║
-    ╚═══════════════════════════════════════════════════════════╝
-    """)
-    
-    # Initialize database
-    asyncio.run(init_database())
-    
-    # Start server
-    uvicorn.run(
-        "web.app:app",
-        host=host,
-        port=port,
-        reload=False,
-        log_level="info",
-        access_log=True,
-        workers=1
-    )
+    try:
+        asyncio.run(start_services())
+    except KeyboardInterrupt:
+        print("Stopped by user")
