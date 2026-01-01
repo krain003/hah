@@ -1,68 +1,76 @@
-{% extends "base.html" %}
+{% extends "tg/base.html" %}
 
-{% block title %}{{ wallet.name or network.name }} - NEXUS{% endblock %}
+{% block title %}{{ wallet.name }} - NEXUS{% endblock %}
 
 {% block content %}
 <div class="header">
     <div class="header-content">
         <div class="logo">
             <span class="logo-icon">{{ network.icon }}</span>
-            <span>{{ wallet.name or network.name }}</span>
+            <span>{{ network.name }}</span>
         </div>
     </div>
 </div>
 
 <main class="main">
-    <a href="/tg/?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="back-link">
-        ← Back to Wallets
-    </a>
+    <a href="/tg/" class="back-link">← Back</a>
     
-    <!-- Balance -->
-    <div class="balance-display">
-        <div class="balance-label">Balance</div>
-        <div class="balance-value">
-            {{ balance }}
-            <span class="symbol">{{ network.symbol }}</span>
-        </div>
+    <!-- Balance Card -->
+    <div class="wallet-balance-card">
+        <div class="balance-network">{{ network.icon }} {{ network.name }}</div>
+        <div class="balance-amount-large">{{ balance }}</div>
+        <div class="balance-symbol-large">{{ network.symbol }}</div>
+        <div class="balance-usd">≈ $0.00</div>
     </div>
     
-    <!-- Actions -->
-    <div class="action-buttons">
-        <a href="/tg/send/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="action-btn" onclick="haptic('light')">
-            <span class="action-btn-icon">📤</span>
+    <!-- Quick Actions -->
+    <div class="wallet-actions">
+        <a href="/tg/send/{{ wallet.id }}" class="wallet-action" onclick="haptic('light')">
+            <span class="action-icon">📤</span>
             <span>Send</span>
         </a>
-        <a href="/tg/receive/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="action-btn" onclick="haptic('light')">
-            <span class="action-btn-icon">📥</span>
+        <a href="/tg/receive/{{ wallet.id }}" class="wallet-action" onclick="haptic('light')">
+            <span class="action-icon">📥</span>
             <span>Receive</span>
+        </a>
+        <a href="/tg/swap" class="wallet-action" onclick="haptic('light')">
+            <span class="action-icon">💱</span>
+            <span>Swap</span>
         </a>
     </div>
     
-    <!-- Address -->
-    <div class="card" style="margin-top: 16px;">
-        <div class="card-title" style="margin-bottom: 12px;">Wallet Address</div>
-        <div class="wallet-address" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');">
+    <!-- Address Card -->
+    <div class="info-card">
+        <div class="info-label">Wallet Address</div>
+        <div class="info-value-box" onclick="copyToClipboard('{{ wallet.address }}')">
             <code>{{ wallet.address }}</code>
-            <button class="btn-icon">📋</button>
+            <span>📋</span>
         </div>
     </div>
     
-    <!-- Recent Transactions -->
-    <div class="card">
-        <div class="card-title" style="margin-bottom: 12px;">Recent Transactions</div>
+    <!-- Explorer Link -->
+    <a href="{{ network.explorer_url }}/address/{{ wallet.address }}" target="_blank" class="explorer-link">
+        🔗 View on {{ network.name }} Explorer
+    </a>
+    
+    <!-- Transactions -->
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Transactions</span>
+        </div>
         
         {% if transactions %}
         <div class="tx-list">
             {% for tx in transactions %}
             <div class="tx-item">
-                <span class="tx-icon">{% if tx.tx_type == 'send' %}📤{% else %}📥{% endif %}</span>
+                <div class="tx-icon">
+                    {% if tx.tx_type == 'send' %}📤{% else %}📥{% endif %}
+                </div>
                 <div class="tx-info">
-                    <div class="tx-type">{{ tx.tx_type | capitalize }}</div>
+                    <div class="tx-type">{{ tx.tx_type|capitalize }}</div>
                     <div class="tx-address">
-                        {% if tx.tx_type == 'send' %}
-                        To: {{ tx.to_address[:8] }}...{{ tx.to_address[-4:] }}
-                        {% else %}
-                        From: {{ tx.from_address[:8] }}...{{ tx.from_address[-4:] }}
+                        {% if tx.to_address %}
+                        {{ tx.to_address[:8] }}...{{ tx.to_address[-4:] }}
                         {% endif %}
                     </div>
                 </div>
@@ -73,18 +81,28 @@
             {% endfor %}
         </div>
         {% else %}
-        <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
-            No transactions yet
+        <div class="empty-state-small">
+            <p>No transactions yet</p>
         </div>
         {% endif %}
     </div>
     
-    <!-- Delete Button -->
-    <form method="POST" action="/tg/delete/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" 
-          onsubmit="return confirm('Are you sure you want to delete this wallet?');" style="margin-top: 24px;">
-        <button type="submit" class="btn btn-danger" onclick="haptic('heavy');">
-            🗑️ Delete Wallet
-        </button>
-    </form>
+    <!-- Danger Zone -->
+    <div class="danger-zone">
+        <form method="POST" action="/tg/delete/{{ wallet.id }}" onsubmit="return confirmDelete()">
+            <button type="submit" class="btn btn-danger">
+                🗑️ Delete Wallet
+            </button>
+        </form>
+    </div>
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete() {
+    haptic('heavy');
+    return confirm('Are you sure you want to delete this wallet? This action cannot be undone!');
+}
+</script>
 {% endblock %}

@@ -1,64 +1,66 @@
-{% extends "base.html" %}
+{% extends "tg/base.html" %}
 
-{% block title %}Send {{ network.symbol if network else '' }} - NEXUS{% endblock %}
+{% block title %}Send - NEXUS{% endblock %}
 
 {% block content %}
 <div class="header">
     <div class="header-content">
         <div class="logo">
             <span class="logo-icon">📤</span>
-            <span>Send {% if network %}{{ network.symbol }}{% endif %}</span>
+            <span>Send</span>
         </div>
     </div>
 </div>
 
 <main class="main">
-    {% if success %}
-    <!-- Success State -->
-    <div class="success-state">
-        <div class="success-icon">✅</div>
-        <div class="success-title">Transaction Sent!</div>
-        <div class="success-text">Your transaction is being processed</div>
+    {% if step == 'no_wallets' %}
+    <!-- No Wallets -->
+    <div class="empty-state">
+        <div class="empty-icon">📤</div>
+        <div class="empty-title">No Wallets</div>
+        <div class="empty-text">Create a wallet first to send crypto</div>
+        <a href="/tg/create" class="btn btn-primary">Create Wallet</a>
     </div>
     
-    <div class="card">
-        <div class="card-title" style="margin-bottom: 12px;">Transaction Hash</div>
-        <div class="wallet-address" onclick="copyToClipboard('{{ tx_hash }}'); haptic('medium');">
-            <code>{{ tx_hash[:20] }}...{{ tx_hash[-10:] }}</code>
-            <button class="btn-icon">📋</button>
-        </div>
-        
-        {% if network %}
-        <a href="{{ network.explorer_url }}/tx/{{ tx_hash }}" target="_blank" class="btn btn-secondary" style="margin-top: 12px;">
-            🔍 View on Explorer
+    {% elif step == 'select_network' %}
+    <!-- Select Network -->
+    <a href="/tg/" class="back-link">← Back</a>
+    
+    <h2 class="page-title">Select Wallet</h2>
+    <p class="page-subtitle">Choose which wallet to send from</p>
+    
+    <div class="network-list">
+        {% for wallet in wallets %}
+        <a href="/tg/send/{{ wallet.id }}" class="network-item" onclick="haptic('light')">
+            <div class="network-icon">{{ wallet.icon }}</div>
+            <div class="network-info">
+                <div class="network-name">{{ wallet.name }}</div>
+                <div class="network-balance">{{ wallet.balance }} {{ wallet.symbol }}</div>
+            </div>
+            <div class="network-arrow">›</div>
         </a>
-        {% endif %}
+        {% endfor %}
     </div>
     
-    <a href="/tg/?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="btn btn-primary" style="margin-top: 16px;">
-        ← Back to Wallets
-    </a>
-    
-    {% else %}
-    <!-- Send Form -->
-    <a href="/tg/wallet/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="back-link">
-        ← Back
-    </a>
+    {% elif step == 'enter_details' %}
+    <!-- Enter Details -->
+    <a href="/tg/send" class="back-link">← Back</a>
     
     {% if error %}
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
     
-    <!-- Balance -->
-    <div class="balance-display">
-        <div class="balance-label">Available Balance</div>
-        <div class="balance-value">
-            {{ balance|default('0') }}
-            <span class="symbol">{% if network %}{{ network.symbol }}{% endif %}</span>
+    <div class="send-header">
+        <div class="send-network">
+            <span class="send-icon">{{ network.icon }}</span>
+            <span>{{ network.name }}</span>
+        </div>
+        <div class="send-balance">
+            Balance: <strong>{{ balance }} {{ network.symbol }}</strong>
         </div>
     </div>
     
-    <form method="POST" action="/tg/send/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}">
+    <form method="POST" action="/tg/send/{{ wallet.id }}" class="send-form">
         <div class="form-group">
             <label class="form-label">Recipient Address</label>
             <input 
@@ -67,42 +69,134 @@
                 class="form-input" 
                 placeholder="Enter wallet address"
                 required
+                autocomplete="off"
             >
         </div>
         
         <div class="form-group">
-            <label class="form-label">Amount {% if network %}({{ network.symbol }}){% endif %}</label>
-            <div class="amount-input-group">
+            <label class="form-label">Amount ({{ network.symbol }})</label>
+            <div class="amount-input-wrapper">
                 <input 
                     type="number" 
                     name="amount" 
-                    id="amount"
-                    class="form-input" 
+                    id="amount-input"
+                    class="form-input amount-input" 
                     placeholder="0.0"
                     step="any"
                     min="0"
+                    max="{{ balance_raw }}"
                     required
                 >
-                <button type="button" class="btn btn-secondary" onclick="setMaxAmount(); haptic('light');">
-                    MAX
-                </button>
+                <span class="amount-symbol">{{ network.symbol }}</span>
+            </div>
+            <div class="amount-buttons">
+                <button type="button" onclick="setAmount(25)">25%</button>
+                <button type="button" onclick="setAmount(50)">50%</button>
+                <button type="button" onclick="setAmount(75)">75%</button>
+                <button type="button" onclick="setAmount(100)">MAX</button>
             </div>
         </div>
         
-        <button type="submit" class="btn btn-primary" onclick="haptic('medium');">
-            📤 Send {% if network %}{{ network.symbol }}{% endif %}
+        <div class="send-summary">
+            <div class="summary-row">
+                <span>Network Fee</span>
+                <span id="fee-estimate">~0.001 {{ network.symbol }}</span>
+            </div>
+            <div class="summary-row total">
+                <span>You'll Send</span>
+                <span id="total-amount">0 {{ network.symbol }}</span>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-lg" onclick="haptic('medium')">
+            📤 Send {{ network.symbol }}
         </button>
     </form>
+    
+    {% elif step == 'success' %}
+    <!-- Success -->
+    <div class="success-state">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Transaction Sent!</div>
+        <div class="success-text">Your transaction is being processed</div>
+        
+        <div class="tx-summary-card">
+            <div class="tx-summary-row">
+                <span>Amount</span>
+                <span>{{ amount }} {{ network.symbol }}</span>
+            </div>
+            <div class="tx-summary-row">
+                <span>To</span>
+                <span class="tx-address-short">{{ to_address[:10] }}...{{ to_address[-6:] }}</span>
+            </div>
+            <div class="tx-summary-row">
+                <span>Status</span>
+                <span class="status-pending">⏳ Pending</span>
+            </div>
+        </div>
+        
+        <div class="tx-hash-display" onclick="copyToClipboard('{{ tx_hash }}')">
+            <span class="hash-label">Transaction Hash</span>
+            <code class="hash-value">{{ tx_hash[:20] }}...{{ tx_hash[-10:] }}</code>
+            <span class="copy-hint">Tap to copy</span>
+        </div>
+        
+        <div class="success-actions">
+            <a href="{{ explorer_url }}" target="_blank" class="btn btn-secondary">
+                🔗 View on Explorer
+            </a>
+            <a href="/tg/" class="btn btn-primary">
+                🏠 Back to Home
+            </a>
+        </div>
+    </div>
     {% endif %}
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/tg/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+        </a>
+        <a href="/tg/wallet" class="nav-item">
+            <span class="nav-icon">💼</span>
+            <span>Wallet</span>
+        </a>
+        <a href="/tg/history" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span>History</span>
+        </a>
+        <a href="/tg/settings" class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+        </a>
+    </nav>
 </main>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const balance = parseFloat("{{ balance|default('0') }}") || 0;
+const maxBalance = parseFloat("{{ balance_raw|default(0) }}") || 0;
+const symbol = "{{ network.symbol if network else '' }}";
 
-function setMaxAmount() {
-    document.getElementById('amount').value = balance;
+function setAmount(percent) {
+    let amount;
+    if (percent === 100) {
+        // Reserve for gas
+        amount = Math.max(maxBalance - 0.005, 0);
+    } else {
+        amount = maxBalance * percent / 100;
+    }
+    document.getElementById('amount-input').value = amount.toFixed(8).replace(/\.?0+$/, '');
+    updateTotal();
+    haptic('light');
 }
+
+function updateTotal() {
+    const amount = parseFloat(document.getElementById('amount-input').value) || 0;
+    document.getElementById('total-amount').textContent = amount.toFixed(6) + ' ' + symbol;
+}
+
+document.getElementById('amount-input')?.addEventListener('input', updateTotal);
 </script>
 {% endblock %}

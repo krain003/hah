@@ -1,0 +1,139 @@
+{% extends "tg/base.html" %}
+
+{% block title %}Swap - NEXUS{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">💱</span>
+            <span>Swap</span>
+        </div>
+    </div>
+</div>
+
+<main class="main">
+    <a href="/tg/" class="back-link">← Back</a>
+    
+    {% if not wallets %}
+    <div class="empty-state">
+        <div class="empty-icon">💱</div>
+        <div class="empty-title">No EVM Wallets</div>
+        <div class="empty-text">Swap is available for Ethereum, BSC, Polygon and other EVM networks</div>
+        <a href="/tg/create" class="btn btn-primary">Create Wallet</a>
+    </div>
+    {% else %}
+    
+    <div class="swap-container">
+        <!-- From -->
+        <div class="swap-card">
+            <div class="swap-label">From</div>
+            <div class="swap-row">
+                <select class="swap-select" id="from-network">
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet.id }}">{{ wallet.icon }} {{ wallet.symbol }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" class="swap-input" id="from-amount" placeholder="0.0" step="any">
+            </div>
+            <div class="swap-balance">Balance: <span id="from-balance">{{ wallets[0].balance if wallets else '0' }}</span></div>
+            <div class="swap-percent-buttons">
+                <button onclick="setPercent(25)">25%</button>
+                <button onclick="setPercent(50)">50%</button>
+                <button onclick="setPercent(75)">75%</button>
+                <button onclick="setPercent(100)">MAX</button>
+            </div>
+        </div>
+        
+        <!-- Swap Arrow -->
+        <div class="swap-arrow" onclick="swapDirection()">
+            🔄
+        </div>
+        
+        <!-- To -->
+        <div class="swap-card">
+            <div class="swap-label">To</div>
+            <div class="swap-row">
+                <select class="swap-select" id="to-token">
+                    <option value="USDT">💲 USDT</option>
+                    <option value="USDC">💲 USDC</option>
+                    <option value="DAI">💲 DAI</option>
+                    <option value="WETH">⟠ WETH</option>
+                    <option value="WBNB">💛 WBNB</option>
+                </select>
+                <input type="number" class="swap-input" id="to-amount" placeholder="0.0" readonly>
+            </div>
+            <div class="swap-rate" id="swap-rate">Rate: --</div>
+        </div>
+        
+        <!-- Swap Info -->
+        <div class="swap-info">
+            <div class="swap-info-row">
+                <span>Slippage</span>
+                <span>0.5%</span>
+            </div>
+            <div class="swap-info-row">
+                <span>Network Fee</span>
+                <span id="network-fee">~$0.00</span>
+            </div>
+            <div class="swap-info-row">
+                <span>Provider</span>
+                <span>1inch</span>
+            </div>
+        </div>
+        
+        <!-- Swap Button -->
+        <button class="btn btn-primary btn-lg" onclick="executeSwap()">
+            💱 Swap Now
+        </button>
+        
+        <div class="swap-disclaimer">
+            ⚠️ Swaps are executed via 1inch DEX aggregator. Rates may vary.
+        </div>
+    </div>
+    
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const wallets = {{ wallets|tojson|safe if wallets else '[]' }};
+let currentBalance = parseFloat('{{ wallets[0].balance if wallets else 0 }}') || 0;
+
+function setPercent(pct) {
+    const amount = (currentBalance * pct / 100).toFixed(6);
+    document.getElementById('from-amount').value = amount;
+    updateQuote();
+    haptic('light');
+}
+
+function swapDirection() {
+    showToast('Swap direction');
+    haptic('medium');
+}
+
+function updateQuote() {
+    const fromAmount = parseFloat(document.getElementById('from-amount').value) || 0;
+    // Simulated rate
+    const rate = 1850.50;
+    const toAmount = fromAmount * rate;
+    document.getElementById('to-amount').value = toAmount.toFixed(2);
+    document.getElementById('swap-rate').textContent = 'Rate: 1 ETH ≈ ' + rate + ' USDT';
+}
+
+document.getElementById('from-amount').addEventListener('input', updateQuote);
+document.getElementById('from-network').addEventListener('change', function() {
+    const selected = wallets.find(w => w.id == this.value);
+    if (selected) {
+        currentBalance = parseFloat(selected.balance) || 0;
+        document.getElementById('from-balance').textContent = selected.balance;
+    }
+});
+
+function executeSwap() {
+    showToast('Swap functionality coming soon!');
+    haptic('heavy');
+}
+</script>
+{% endblock %}

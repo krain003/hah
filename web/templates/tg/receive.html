@@ -1,62 +1,115 @@
-{% extends "base.html" %}
+{% extends "tg/base.html" %}
 
-{% block title %}Receive {{ network.symbol if network else '' }} - NEXUS{% endblock %}
+{% block title %}Receive - NEXUS{% endblock %}
 
 {% block content %}
 <div class="header">
     <div class="header-content">
         <div class="logo">
             <span class="logo-icon">📥</span>
-            <span>Receive {% if network %}{{ network.symbol }}{% endif %}</span>
+            <span>Receive</span>
         </div>
     </div>
 </div>
 
 <main class="main">
-    <a href="/tg/wallet/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="back-link">
-        ← Back
-    </a>
-    
-    {% if error %}
-    <div class="alert alert-error">{{ error }}</div>
-    {% else %}
-    
-    <div style="text-align: center;">
-        <h2 class="page-title">{{ wallet.name or network.name }}</h2>
-        <p class="page-subtitle">Scan QR code or copy address below</p>
+    {% if step == 'no_wallets' %}
+    <!-- No Wallets -->
+    <div class="empty-state">
+        <div class="empty-icon">📥</div>
+        <div class="empty-title">No Wallets</div>
+        <div class="empty-text">Create a wallet first to receive crypto</div>
+        <a href="/tg/create" class="btn btn-primary">Create Wallet</a>
     </div>
     
-    <!-- QR Code -->
-    <div class="qr-container">
-        <canvas id="qrcode"></canvas>
+    {% elif step == 'select_network' %}
+    <!-- Select Network -->
+    <a href="/tg/" class="back-link">← Back</a>
+    
+    <h2 class="page-title">Select Wallet</h2>
+    <p class="page-subtitle">Choose which wallet to receive to</p>
+    
+    <div class="network-list">
+        {% for wallet in wallets %}
+        <a href="/tg/receive/{{ wallet.id }}" class="network-item" onclick="haptic('light')">
+            <div class="network-icon">{{ wallet.icon }}</div>
+            <div class="network-info">
+                <div class="network-name">{{ wallet.name }}</div>
+                <div class="network-address">{{ wallet.address[:8] }}...{{ wallet.address[-6:] }}</div>
+            </div>
+            <div class="network-arrow">›</div>
+        </a>
+        {% endfor %}
     </div>
     
-    <!-- Address -->
-    <div class="card">
-        <div class="card-title" style="margin-bottom: 12px;">Your Address</div>
-        <div class="address-display" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');">
-            <code>{{ wallet.address }}</code>
+    {% elif step == 'show_address' %}
+    <!-- Show Address & QR -->
+    <a href="/tg/receive" class="back-link">← Back</a>
+    
+    <div class="receive-container">
+        <div class="receive-header">
+            <span class="receive-icon">{{ network.icon }}</span>
+            <span class="receive-network">{{ network.name }}</span>
         </div>
-        <button class="btn btn-primary" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');" style="margin-top: 12px;">
-            📋 Copy Address
-        </button>
+        
+        <div class="qr-container">
+            <canvas id="qrcode"></canvas>
+        </div>
+        
+        <div class="address-container">
+            <div class="address-label">Your {{ network.symbol }} Address</div>
+            <div class="address-box" onclick="copyToClipboard('{{ wallet.address }}')">
+                <code class="address-text">{{ wallet.address }}</code>
+                <span class="copy-icon">📋</span>
+            </div>
+            <div class="copy-hint">Tap to copy address</div>
+        </div>
+        
+        <div class="receive-actions">
+            <button class="btn btn-primary" onclick="copyToClipboard('{{ wallet.address }}')">
+                📋 Copy Address
+            </button>
+            <button class="btn btn-secondary" onclick="shareAddress()">
+                📤 Share
+            </button>
+        </div>
+        
+        <div class="alert alert-warning">
+            ⚠️ Only send <strong>{{ network.symbol }}</strong> and tokens on <strong>{{ network.name }}</strong> network to this address!
+        </div>
     </div>
-    
-    <div class="alert alert-warning" style="margin-top: 16px;">
-        💡 Only send <strong>{{ network.symbol }}</strong> on <strong>{{ network.name }}</strong> network to this address
-    </div>
-    
     {% endif %}
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/tg/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+        </a>
+        <a href="/tg/wallet" class="nav-item">
+            <span class="nav-icon">💼</span>
+            <span>Wallet</span>
+        </a>
+        <a href="/tg/history" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span>History</span>
+        </a>
+        <a href="/tg/settings" class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+        </a>
+    </nav>
 </main>
 {% endblock %}
 
 {% block scripts %}
+{% if step == 'show_address' %}
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const address = '{{ wallet.address }}';
     QRCode.toCanvas(document.getElementById('qrcode'), address, {
-        width: 200,
+        width: 220,
         margin: 2,
         color: {
             dark: '#000000',
@@ -64,5 +117,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function shareAddress() {
+    const address = '{{ wallet.address }}';
+    const text = 'My {{ network.name }} address: ' + address;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: 'NEXUS Wallet Address',
+            text: text
+        });
+    } else {
+        copyToClipboard(address);
+    }
+    haptic('medium');
+}
 </script>
+{% endif %}
 {% endblock %}

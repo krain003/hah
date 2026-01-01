@@ -1,0 +1,105 @@
+{% extends "tg/base.html" %}
+
+{% block title %}History - NEXUS{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">📜</span>
+            <span>History</span>
+        </div>
+    </div>
+</div>
+
+<main class="main">
+    <!-- Filters -->
+    <div class="filter-tabs">
+        <a href="/tg/history?filter=all" class="filter-tab {% if current_filter == 'all' %}active{% endif %}">
+            All
+        </a>
+        <a href="/tg/history?filter=send" class="filter-tab {% if current_filter == 'send' %}active{% endif %}">
+            📤 Sent
+        </a>
+        <a href="/tg/history?filter=receive" class="filter-tab {% if current_filter == 'receive' %}active{% endif %}">
+            📥 Received
+        </a>
+        <a href="/tg/history?filter=swap" class="filter-tab {% if current_filter == 'swap' %}active{% endif %}">
+            💱 Swaps
+        </a>
+    </div>
+    
+    <!-- Transactions -->
+    {% if transactions %}
+    <div class="tx-list-full">
+        {% for tx in transactions %}
+        <div class="tx-item-full">
+            <div class="tx-left">
+                <div class="tx-icon-large">
+                    {% if tx.tx_type == 'send' %}📤
+                    {% elif tx.tx_type == 'receive' %}📥
+                    {% elif tx.tx_type == 'swap' %}💱
+                    {% else %}📄{% endif %}
+                </div>
+                <div class="tx-details">
+                    <div class="tx-type-badge {{ tx.tx_type }}">{{ tx.tx_type|capitalize }}</div>
+                    <div class="tx-network">
+                        {% set network = networks.get(tx.network) %}
+                        {% if network %}{{ network.icon }} {{ network.name }}{% else %}{{ tx.network }}{% endif %}
+                    </div>
+                    {% if tx.to_address %}
+                    <div class="tx-address-full">
+                        → {{ tx.to_address[:12] }}...{{ tx.to_address[-6:] }}
+                    </div>
+                    {% endif %}
+                    <div class="tx-time">{{ tx.created_at }}</div>
+                </div>
+            </div>
+            <div class="tx-right">
+                <div class="tx-amount-large {% if tx.tx_type == 'send' %}negative{% else %}positive{% endif %}">
+                    {% if tx.tx_type == 'send' %}-{% else %}+{% endif %}{{ tx.amount }}
+                </div>
+                <div class="tx-status {{ tx.status }}">
+                    {% if tx.status == 'completed' %}✅
+                    {% elif tx.status == 'pending' %}⏳
+                    {% elif tx.status == 'failed' %}❌
+                    {% else %}{{ tx.status }}{% endif %}
+                </div>
+                {% if tx.tx_hash %}
+                <a href="#" class="tx-explorer-link" onclick="copyToClipboard('{{ tx.tx_hash }}')">
+                    📋 Copy Hash
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">No Transactions</div>
+        <div class="empty-text">Your transaction history will appear here</div>
+    </div>
+    {% endif %}
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/tg/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+        </a>
+        <a href="/tg/wallet" class="nav-item">
+            <span class="nav-icon">💼</span>
+            <span>Wallet</span>
+        </a>
+        <a href="/tg/history" class="nav-item active">
+            <span class="nav-icon">📜</span>
+            <span>History</span>
+        </a>
+        <a href="/tg/settings" class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+        </a>
+    </nav>
+</main>
+{% endblock %}

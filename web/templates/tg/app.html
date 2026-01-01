@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "tg/base.html" %}
 
 {% block title %}NEXUS WALLET{% endblock %}
 
@@ -22,56 +22,117 @@
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
     
-    {% if wallets %}
-    <!-- Wallets List -->
-    <div class="card-header">
-        <span class="card-title">Your Wallets</span>
+    <!-- Total Balance Card -->
+    <div class="balance-card">
+        <div class="balance-label">Total Balance</div>
+        <div class="balance-value">${{ "%.2f"|format(total_usd|default(0)) }}</div>
+        <div class="balance-change positive">+0.00%</div>
     </div>
-    
-    {% for wallet in wallets %}
-    <a href="/tg/wallet/{{ wallet.id }}?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="wallet-card-link">
-        <div class="wallet-card">
-            <div class="wallet-header">
-                <span class="wallet-icon">{{ wallet.icon }}</span>
-                <div class="wallet-info">
-                    <div class="wallet-name">{{ wallet.name }}</div>
-                    <div class="wallet-network">{{ wallet.network }}</div>
-                </div>
-                <div class="wallet-balance">
-                    <span class="balance-amount">{{ wallet.balance }}</span>
-                    <span class="balance-symbol">{{ wallet.symbol }}</span>
-                </div>
-            </div>
-            <div class="wallet-address" onclick="event.preventDefault(); copyToClipboard('{{ wallet.address }}'); haptic('medium');">
-                <code>{{ wallet.address[:10] }}...{{ wallet.address[-8:] }}</code>
-                <button class="btn-icon">📋</button>
-            </div>
-        </div>
-    </a>
-    {% endfor %}
     
     <!-- Quick Actions -->
-    <div class="action-buttons">
-        <a href="/tg/create?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="action-btn" onclick="haptic('light')">
-            <span class="action-btn-icon">➕</span>
-            <span>Add Wallet</span>
+    <div class="quick-actions">
+        <a href="/tg/send" class="quick-action" onclick="haptic('light')">
+            <span class="quick-action-icon">📤</span>
+            <span>Send</span>
         </a>
-        <a href="#" class="action-btn" onclick="haptic('light')">
-            <span class="action-btn-icon">📊</span>
-            <span>Portfolio</span>
+        <a href="/tg/receive" class="quick-action" onclick="haptic('light')">
+            <span class="quick-action-icon">📥</span>
+            <span>Receive</span>
+        </a>
+        <a href="/tg/swap" class="quick-action" onclick="haptic('light')">
+            <span class="quick-action-icon">💱</span>
+            <span>Swap</span>
+        </a>
+        <a href="/tg/p2p" class="quick-action" onclick="haptic('light')">
+            <span class="quick-action-icon">🤝</span>
+            <span>P2P</span>
         </a>
     </div>
     
-    {% else %}
-    <!-- Empty State -->
-    <div class="empty-state">
-        <div class="empty-icon">💼</div>
-        <div class="empty-title">No Wallets Yet</div>
-        <div class="empty-text">Create your first crypto wallet to get started</div>
-        <a href="/tg/create?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="btn btn-primary" onclick="haptic('medium')">
-            ➕ Create Wallet
-        </a>
+    <!-- Wallets -->
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Your Wallets</span>
+            <a href="/tg/create" class="section-action">+ Add</a>
+        </div>
+        
+        {% if wallets %}
+        <div class="wallets-list">
+            {% for wallet in wallets %}
+            <a href="/tg/wallet/{{ wallet.id }}" class="wallet-item" onclick="haptic('light')">
+                <div class="wallet-icon">{{ wallet.icon }}</div>
+                <div class="wallet-info">
+                    <div class="wallet-name">{{ wallet.name }}</div>
+                    <div class="wallet-address">{{ wallet.short_address }}</div>
+                </div>
+                <div class="wallet-balance">
+                    <div class="balance-amount">{{ wallet.balance }}</div>
+                    <div class="balance-symbol">{{ wallet.symbol }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state-small">
+            <p>No wallets yet</p>
+            <a href="/tg/create" class="btn btn-primary btn-sm">Create Wallet</a>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
+    
+    <!-- Recent Transactions -->
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Recent Activity</span>
+            <a href="/tg/history" class="section-action">View All</a>
+        </div>
+        
+        {% if transactions %}
+        <div class="tx-list">
+            {% for tx in transactions[:5] %}
+            <div class="tx-item">
+                <div class="tx-icon">
+                    {% if tx.tx_type == 'send' %}📤{% elif tx.tx_type == 'receive' %}📥{% elif tx.tx_type == 'swap' %}💱{% else %}📄{% endif %}
+                </div>
+                <div class="tx-info">
+                    <div class="tx-type">{{ tx.tx_type|capitalize }}</div>
+                    <div class="tx-address">
+                        {% if tx.to_address %}
+                        {{ tx.to_address[:8] }}...{{ tx.to_address[-4:] }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="tx-amount {% if tx.tx_type == 'send' %}negative{% else %}positive{% endif %}">
+                    {% if tx.tx_type == 'send' %}-{% else %}+{% endif %}{{ tx.amount }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state-small">
+            <p>No transactions yet</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/tg/" class="nav-item active">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+        </a>
+        <a href="/tg/wallet" class="nav-item">
+            <span class="nav-icon">💼</span>
+            <span>Wallet</span>
+        </a>
+        <a href="/tg/history" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span>History</span>
+        </a>
+        <a href="/tg/settings" class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+        </a>
+    </nav>
 </main>
 {% endblock %}

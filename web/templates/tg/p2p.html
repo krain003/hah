@@ -1,0 +1,153 @@
+{% extends "tg/base.html" %}
+
+{% block title %}P2P Trading - NEXUS{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">🤝</span>
+            <span>P2P Trading</span>
+        </div>
+    </div>
+</div>
+
+<main class="main">
+    <a href="/tg/" class="back-link">← Back</a>
+    
+    <!-- P2P Tabs -->
+    <div class="p2p-tabs">
+        <button class="p2p-tab active" onclick="showP2PTab('buy')">💰 Buy</button>
+        <button class="p2p-tab" onclick="showP2PTab('sell')">💸 Sell</button>
+        <button class="p2p-tab" onclick="showP2PTab('my-orders')">📋 My Orders</button>
+    </div>
+    
+    <!-- Buy Tab -->
+    <div id="buy-tab" class="p2p-content">
+        <div class="p2p-filters">
+            <select class="form-input">
+                <option>All Crypto</option>
+                <option>BTC</option>
+                <option>ETH</option>
+                <option>USDT</option>
+            </select>
+            <select class="form-input">
+                <option>All Payment</option>
+                <option>Bank Transfer</option>
+                <option>Card</option>
+                <option>PayPal</option>
+            </select>
+        </div>
+        
+        <div class="p2p-orders">
+            <!-- Sample Order -->
+            <div class="p2p-order-card">
+                <div class="p2p-order-header">
+                    <div class="p2p-merchant">
+                        <span class="merchant-avatar">👤</span>
+                        <div class="merchant-info">
+                            <span class="merchant-name">CryptoTrader</span>
+                            <span class="merchant-stats">⭐ 4.9 • 500+ trades</span>
+                        </div>
+                    </div>
+                    <div class="p2p-price">
+                        <span class="price-value">$1,855</span>
+                        <span class="price-label">per ETH</span>
+                    </div>
+                </div>
+                <div class="p2p-order-details">
+                    <div class="detail-row">
+                        <span>Available</span>
+                        <span>5.5 ETH</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Limit</span>
+                        <span>$100 - $10,000</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Payment</span>
+                        <span>🏦 Bank Transfer</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="showToast('P2P coming soon!')">
+                    Buy ETH
+                </button>
+            </div>
+            
+            <!-- Another Sample Order -->
+            <div class="p2p-order-card">
+                <div class="p2p-order-header">
+                    <div class="p2p-merchant">
+                        <span class="merchant-avatar">👤</span>
+                        <div class="merchant-info">
+                            <span class="merchant-name">BTCMaster</span>
+                            <span class="merchant-stats">⭐ 5.0 • 1000+ trades</span>
+                        </div>
+                    </div>
+                    <div class="p2p-price">
+                        <span class="price-value">$43,500</span>
+                        <span class="price-label">per BTC</span>
+                    </div>
+                </div>
+                <div class="p2p-order-details">
+                    <div class="detail-row">
+                        <span>Available</span>
+                        <span>2.0 BTC</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Limit</span>
+                        <span>$500 - $50,000</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Payment</span>
+                        <span>💳 Card, 🏦 Bank</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="showToast('P2P coming soon!')">
+                    Buy BTC
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sell Tab -->
+    <div id="sell-tab" class="p2p-content hidden">
+        <div class="empty-state">
+            <div class="empty-icon">💸</div>
+            <div class="empty-title">Sell Crypto</div>
+            <div class="empty-text">Create a sell order to trade with other users</div>
+            <button class="btn btn-primary" onclick="showToast('Coming soon!')">
+                ➕ Create Sell Order
+            </button>
+        </div>
+    </div>
+    
+    <!-- My Orders Tab -->
+    <div id="my-orders-tab" class="p2p-content hidden">
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">No Active Orders</div>
+            <div class="empty-text">Your P2P orders will appear here</div>
+        </div>
+    </div>
+    
+    <!-- Create Order FAB -->
+    <a href="#" class="fab" onclick="showToast('Create order coming soon!')">
+        ➕
+    </a>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showP2PTab(tab) {
+    document.querySelectorAll('.p2p-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.p2p-content').forEach(c => c.classList.add('hidden'));
+    
+    event.target.classList.add('active');
+    document.getElementById(tab + '-tab').classList.remove('hidden');
+    
+    haptic('light');
+}
+</script>
+{% endblock %}

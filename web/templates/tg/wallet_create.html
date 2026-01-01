@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "tg/base.html" %}
 
 {% block title %}Create Wallet - NEXUS{% endblock %}
 
@@ -6,96 +6,139 @@
 <div class="header">
     <div class="header-content">
         <div class="logo">
-            <span class="logo-icon">💎</span>
-            <span>NEXUS</span>
+            <span class="logo-icon">➕</span>
+            <span>Create Wallet</span>
         </div>
     </div>
 </div>
 
 <main class="main">
     {% if action == 'success' %}
-    <!-- Success State -->
+    <!-- Single Wallet Success -->
     <div class="success-state">
         <div class="success-icon">✅</div>
         <div class="success-title">Wallet Created!</div>
-        <div class="success-text">Your {{ wallet.name }} is ready to use</div>
+        <div class="success-text">Your {{ wallet.name }} is ready</div>
     </div>
     
-    <div class="card">
-        <div class="wallet-header">
-            <span class="wallet-icon">{{ wallet.icon }}</span>
-            <div class="wallet-info">
-                <div class="wallet-name">{{ wallet.name }}</div>
-                <div class="wallet-network">{{ wallet.network | upper }}</div>
-            </div>
+    <div class="wallet-created-card">
+        <div class="created-header">
+            <span class="created-icon">{{ wallet.icon }}</span>
+            <span class="created-name">{{ wallet.name }}</span>
         </div>
-        
-        <div class="address-display" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');">
+        <div class="created-address" onclick="copyToClipboard('{{ wallet.address }}')">
             <code>{{ wallet.address }}</code>
+            <span>📋</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('{{ wallet.address }}'); haptic('medium');">
-            📋 Copy Address
-        </button>
     </div>
     
     {% if wallet.mnemonic %}
     <div class="mnemonic-container">
         <div class="mnemonic-warning">
-            ⚠️ Save this recovery phrase securely!
+            ⚠️ <strong>SAVE YOUR RECOVERY PHRASE!</strong>
         </div>
         <div class="mnemonic-words">
             {% for word in wallet.mnemonic.split() %}
-            <div class="mnemonic-word">{{ loop.index }}. {{ word }}</div>
+            <div class="mnemonic-word">
+                <span class="word-num">{{ loop.index }}</span>
+                <span class="word-text">{{ word }}</span>
+            </div>
             {% endfor %}
         </div>
-        <button class="btn btn-secondary btn-sm" style="margin-top: 12px;" onclick="copyToClipboard('{{ wallet.mnemonic }}'); haptic('medium');">
+        <button class="btn btn-secondary" onclick="copyToClipboard('{{ wallet.mnemonic }}')">
             📋 Copy Phrase
         </button>
-    </div>
-    <div class="alert alert-warning">
-        ⚠️ Never share your recovery phrase! Anyone with it can access your wallet.
+        <div class="mnemonic-danger">
+            🚨 Never share this phrase with anyone! Anyone with this phrase can steal your funds.
+        </div>
     </div>
     {% endif %}
     
-    <a href="/tg/?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="btn btn-primary" onclick="haptic('medium');">
-        ← Back to Wallets
-    </a>
+    <div class="success-actions">
+        <a href="/tg/" class="btn btn-primary">Go to Dashboard</a>
+        <a href="/tg/create" class="btn btn-secondary">Create Another</a>
+    </div>
+    
+    {% elif action == 'success_all' %}
+    <!-- All Wallets Success -->
+    <div class="success-state">
+        <div class="success-icon">✅</div>
+        <div class="success-title">{{ created_count }} Wallets Created!</div>
+        <div class="success-text">All networks are ready</div>
+    </div>
+    
+    {% if mnemonic %}
+    <div class="mnemonic-container">
+        <div class="mnemonic-warning">
+            ⚠️ <strong>SAVE YOUR RECOVERY PHRASE!</strong>
+        </div>
+        <div class="mnemonic-words">
+            {% for word in mnemonic.split() %}
+            <div class="mnemonic-word">
+                <span class="word-num">{{ loop.index }}</span>
+                <span class="word-text">{{ word }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="btn btn-secondary" onclick="copyToClipboard('{{ mnemonic }}')">
+            📋 Copy Phrase
+        </button>
+        <div class="mnemonic-danger">
+            🚨 This phrase works for ALL your wallets. Keep it extremely safe!
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="success-actions">
+        <a href="/tg/" class="btn btn-primary">Go to Dashboard</a>
+    </div>
     
     {% else %}
-    <!-- Create Form -->
-    <a href="/tg/?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}" class="back-link">
-        ← Back
-    </a>
-    
-    <h1 class="page-title">Create Wallet</h1>
-    <p class="page-subtitle">Choose a network for your new wallet</p>
+    <!-- Select Network -->
+    <a href="/tg/wallet" class="back-link">← Back</a>
     
     {% if error %}
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
     
-    <form method="POST" action="/tg/create?tgWebAppData={{ request.query_params.get('tgWebAppData', '') }}">
-        <div class="form-group">
-            <label class="form-label">Select Network</label>
-            <div class="network-grid">
-                {% for network_id, config in networks.items() %}
-                <label class="network-option">
-                    <input type="radio" name="network" value="{{ network_id }}" required>
+    <h2 class="page-title">Create New Wallet</h2>
+    <p class="page-subtitle">Select a network or create all at once</p>
+    
+    <!-- Create All Button -->
+    <form method="POST" action="/tg/create" class="create-all-form">
+        <input type="hidden" name="create_all" value="true">
+        <button type="submit" class="btn btn-primary btn-lg create-all-btn" onclick="haptic('medium')">
+            🌐 Create All Networks
+            <span class="btn-subtitle">One seed phrase for all wallets</span>
+        </button>
+    </form>
+    
+    <div class="divider">
+        <span>or select single network</span>
+    </div>
+    
+    <!-- Network Grid -->
+    <form method="POST" action="/tg/create" id="single-create-form">
+        <div class="network-grid">
+            {% for network_id, config in networks.items() %}
+            <label class="network-option" onclick="haptic('light')">
+                <input type="radio" name="network" value="{{ network_id }}" required>
+                <div class="network-option-content">
                     <span class="network-option-icon">{{ config.icon }}</span>
                     <span class="network-option-name">{{ config.name }}</span>
                     <span class="network-option-symbol">{{ config.symbol }}</span>
-                </label>
-                {% endfor %}
-            </div>
+                </div>
+            </label>
+            {% endfor %}
         </div>
         
-        <div class="form-group">
+        <div class="form-group" style="margin-top: 20px;">
             <label class="form-label">Wallet Name (optional)</label>
             <input type="text" name="name" class="form-input" placeholder="My Wallet">
         </div>
         
-        <button type="submit" class="btn btn-primary" onclick="haptic('medium');">
-            🔐 Create Wallet
+        <button type="submit" class="btn btn-secondary btn-lg" onclick="haptic('medium')">
+            ➕ Create Selected Wallet
         </button>
     </form>
     {% endif %}

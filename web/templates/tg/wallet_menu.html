@@ -1,0 +1,83 @@
+{% extends "tg/base.html" %}
+
+{% block title %}Wallet - NEXUS{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">💼</span>
+            <span>Wallet</span>
+        </div>
+    </div>
+</div>
+
+<main class="main">
+    <a href="/tg/" class="back-link">← Back</a>
+    
+    <!-- Wallet Actions -->
+    <div class="action-grid">
+        <a href="/tg/create" class="action-card" onclick="haptic('light')">
+            <span class="action-icon">➕</span>
+            <span class="action-title">Create Wallet</span>
+            <span class="action-desc">Generate new wallet</span>
+        </a>
+        <a href="/tg/import" class="action-card" onclick="haptic('light')">
+            <span class="action-icon">📥</span>
+            <span class="action-title">Import Wallet</span>
+            <span class="action-desc">From seed or key</span>
+        </a>
+    </div>
+    
+    <!-- My Wallets -->
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">My Wallets ({{ wallets|length }})</span>
+        </div>
+        
+        {% if wallets %}
+        <div class="wallets-list">
+            {% for wallet in wallets %}
+            <a href="/tg/wallet/{{ wallet.id }}" class="wallet-item" onclick="haptic('light')">
+                <div class="wallet-icon">{{ wallet.icon }}</div>
+                <div class="wallet-info">
+                    <div class="wallet-name">{{ wallet.name }}</div>
+                    <div class="wallet-network">{{ wallet.network|upper }}</div>
+                </div>
+                <div class="wallet-balance">
+                    <div class="balance-amount">{{ wallet.balance }}</div>
+                    <div class="balance-symbol">{{ wallet.symbol }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">💼</div>
+            <div class="empty-title">No Wallets</div>
+            <div class="empty-text">Create or import your first wallet</div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/tg/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+        </a>
+        <a href="/tg/wallet" class="nav-item active">
+            <span class="nav-icon">💼</span>
+            <span>Wallet</span>
+        </a>
+        <a href="/tg/history" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span>History</span>
+        </a>
+        <a href="/tg/settings" class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+        </a>
+    </nav>
+</main>
+{% endblock %}

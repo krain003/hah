@@ -166,6 +166,30 @@ class UserDB:
 class WalletDB:
     """Wallet database operations"""
     
+    # Добавь этот метод в класс WalletDB:
+
+@staticmethod
+async def get_user_wallet_by_network(user_id: int, network: str) -> Optional[Dict]:
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM web_wallets WHERE user_id = ? AND network = ?",
+            (user_id, network)
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+@staticmethod
+async def get_wallet_by_address(address: str) -> Optional[Dict]:
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM web_wallets WHERE address = ?",
+            (address,)
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
     @staticmethod
     async def create_wallet(
         user_id: int,

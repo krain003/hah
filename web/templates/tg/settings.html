@@ -1,0 +1,157 @@
+{% extends "tg/base.html" %}
+
+{% block title %}Settings - NEXUS{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">⚙️</span>
+            <span>Settings</span>
+        </div>
+    </div>
+</div>
+
+<main class="main">
+    <div class="settings-list">
+        <!-- Language -->
+        <div class="settings-item" onclick="toggleDropdown('lang-dropdown')">
+            <div class="settings-icon">🌐</div>
+            <div class="settings-info">
+                <div class="settings-title">Language</div>
+                <div class="settings-value">🇬🇧 English</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        <div id="lang-dropdown" class="settings-dropdown hidden">
+            {% for code, name in languages.items() %}
+            <div class="dropdown-item" onclick="selectLanguage('{{ code }}')">{{ name }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Currency -->
+        <div class="settings-item" onclick="toggleDropdown('currency-dropdown')">
+            <div class="settings-icon">💵</div>
+            <div class="settings-info">
+                <div class="settings-title">Default Currency</div>
+                <div class="settings-value">🇺🇸 USD</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        <div id="currency-dropdown" class="settings-dropdown hidden">
+            {% for code, name in currencies.items() %}
+            <div class="dropdown-item" onclick="selectCurrency('{{ code }}')">{{ name }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Security Section -->
+        <div class="settings-section-title">Security</div>
+        
+        <div class="settings-item" onclick="showToast('Coming soon!')">
+            <div class="settings-icon">🔐</div>
+            <div class="settings-info">
+                <div class="settings-title">Change PIN</div>
+                <div class="settings-value">Update security PIN</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        
+        <div class="settings-item" onclick="showToast('Coming soon!')">
+            <div class="settings-icon">🛡️</div>
+            <div class="settings-info">
+                <div class="settings-title">Two-Factor Auth</div>
+                <div class="settings-value">❌ Disabled</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        
+        <div class="settings-item" onclick="showToast('Coming soon!')">
+            <div class="settings-icon">🔔</div>
+            <div class="settings-info">
+                <div class="settings-title">Notifications</div>
+                <div class="settings-value">✅ Enabled</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        
+        <!-- Other -->
+        <div class="settings-section-title">Other</div>
+        
+        <div class="settings-item" onclick="showToast('Coming soon!')">
+            <div class="settings-icon">👥</div>
+            <div class="settings-info">
+                <div class="settings-title">Referral Program</div>
+                <div class="settings-value">Invite & Earn</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        
+        <div class="settings-item" onclick="showToast('Coming soon!')">
+            <div class="settings-icon">📊</div>
+            <div class="settings-info">
+                <div class="settings-title">Statistics</div>
+                <div class="settings-value">Your trading stats</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        
+        <div class="settings-item">
+            <div class="settings-icon">ℹ️</div>
+            <div class="settings-info">
+                <div class="settings-title">About</div>
+                <div class="settings-value">NEXUS WALLET v1.0.0</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+        
+        <div class="settings-item" onclick="showToast('Contact @Nexus_Support')">
+            <div class="settings-icon">💬</div>
+            <div class="settings-info">
+                <div class="settings-title">Support</div>
+                <div class="settings-value">Get help</div>
+            </div>
+            <div class="settings-arrow">›</div>
+        </div>
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/tg/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+        </a>
+        <a href="/tg/wallet" class="nav-item">
+            <span class="nav-icon">💼</span>
+            <span>Wallet</span>
+        </a>
+        <a href="/tg/history" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span>History</span>
+        </a>
+        <a href="/tg/settings" class="nav-item active">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+        </a>
+    </nav>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleDropdown(id) {
+    const dropdown = document.getElementById(id);
+    dropdown.classList.toggle('hidden');
+    haptic('light');
+}
+
+function selectLanguage(code) {
+    showToast('Language changed');
+    document.querySelectorAll('.settings-dropdown').forEach(d => d.classList.add('hidden'));
+}
+
+function selectCurrency(code) {
+    showToast('Currency changed to ' + code);
+    document.querySelectorAll('.settings-dropdown').forEach(d => d.classList.add('hidden'));
+}
+</script>
+{% endblock %}
