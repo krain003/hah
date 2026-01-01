@@ -7,8 +7,9 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
 import structlog
 
+from config.settings import settings
 from database.connection import db_manager
-from database.models import User, UserStatus
+from database.models import User
 from database.repositories.user_repository import UserRepository
 from security.encryption_manager import encryption_manager
 from locales.messages import get_text, get_user_lang
@@ -38,16 +39,15 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Main menu with localized buttons and Web App"""
+    """Main menu with Web App button"""
     
-    # Берем URL из переменных окружения, которые мы задаем на Render.
-    # Если переменной нет, ставим заглушку.
-    web_app_url = os.getenv("WEB_APP_URL", "https://example.com")
+    # Use URL from settings
+    web_app_url = settings.WEB_APP_URL
     
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
-                text="🚀 OPEN WEB WALLET", 
+                text="💎 OPEN WEB WALLET",
                 web_app=WebAppInfo(url=web_app_url)
             )
         ],
@@ -73,7 +73,10 @@ def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 def get_welcome_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """Welcome keyboard"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=get_text("btn_open_wallet", lang), callback_data="open_wallet")],
+        [InlineKeyboardButton(
+            text="🚀 " + get_text("btn_open_wallet", lang), 
+            web_app=WebAppInfo(url=settings.WEB_APP_URL)
+        )],
         [InlineKeyboardButton(text=get_text("btn_tutorial", lang), callback_data="tutorial")]
     ])
 
@@ -219,6 +222,8 @@ async def process_pin_confirm(message: Message, state: FSMContext):
 @router.callback_query(F.data == "open_wallet")
 async def open_wallet(callback: CallbackQuery):
     """Open main wallet menu"""
+    # This might be deprecated if we use WebApp button directly, 
+    # but good to keep as fallback logic
     async with db_manager.session() as session:
         user_repo = UserRepository()
         user = await user_repo.get_by_telegram_id(session, callback.from_user.id)
@@ -250,14 +255,13 @@ async def show_main_menu(message: Message, user: User, lang: str = "en", edit: b
 
     menu_text = get_text("main_menu", lang, name=name)
     keyboard = get_main_menu_keyboard(lang)
-    
+
     try:
         if edit:
             await message.edit_text(menu_text, reply_markup=keyboard, parse_mode="HTML")
         else:
             await message.answer(menu_text, reply_markup=keyboard, parse_mode="HTML")
     except TelegramBadRequest:
-        # Ignore if message is not modified
         pass
     except Exception as e:
         logger.error("Failed to show main menu", error=e)

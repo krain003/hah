@@ -1,68 +1,33 @@
-"""
-NEXUS WALLET - Configuration Settings
-"""
-
-from pydantic_settings import BaseSettings
-from pydantic import Field, SecretStr
-from typing import Optional, List
-from functools import lru_cache
-
-
-class SecuritySettings:
-    """Security settings"""
-    MASTER_KEY: SecretStr = SecretStr("change-me-32-bytes-key-here!!")
-    ENCRYPTION_SALT: SecretStr = SecretStr("change-me-salt-16bytes")
-
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import SecretStr
+from typing import Optional
 
 class Settings(BaseSettings):
-    # Environment
-    ENV: str = Field(default="development")
-    DEBUG: bool = Field(default=False)
+    # Bot Token
+    BOT_TOKEN: SecretStr
+    # Alias for Docker compatibility
+    TG_BOT_TOKEN: Optional[SecretStr] = None 
 
-    # Telegram
-    BOT_TOKEN: SecretStr = Field(alias="TG_BOT_TOKEN")
-    BOT_USERNAME: str = Field(default="NexusWalletBot", alias="TG_BOT_USERNAME")
-    ADMIN_IDS: List[int] = Field(default=[], alias="TG_ADMIN_IDS")
-    SUPER_ADMIN_IDS: List[int] = Field(default=[], alias="TG_SUPER_ADMIN_IDS")
+    # Security
+    SECURITY_MASTER_KEY: str = "default-master-key-change-me-32-chars!!"
+    SECURITY_ENCRYPTION_SALT: str = "default-salt-16-chars!!"
 
     # Database
-    POSTGRES_HOST: str = Field(default="localhost", alias="DB_POSTGRES_HOST")
-    POSTGRES_PORT: int = Field(default=5432, alias="DB_POSTGRES_PORT")
-    POSTGRES_USER: str = Field(default="nexus", alias="DB_POSTGRES_USER")
-    POSTGRES_PASSWORD: SecretStr = Field(default="password", alias="DB_POSTGRES_PASSWORD")
-    POSTGRES_DB: str = Field(default="nexus_wallet", alias="DB_POSTGRES_DB")
+    DATABASE_URL: str = "sqlite:///nexus_wallet.db"
 
-    REDIS_HOST: str = Field(default="localhost", alias="DB_REDIS_HOST")
-    REDIS_PORT: int = Field(default=6379, alias="DB_REDIS_PORT")
+    # Web App URL (Your Railway Link)
+    # Important: Must end with /tg/ for Mini App routes
+    WEB_APP_URL: str = "https://nexus-wallet-production.up.railway.app/tg/"
 
-    # Security settings as property
-    @property
-    def security(self) -> SecuritySettings:
-        return SecuritySettings()
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
-    # Blockchain
-    ETH_RPC_URL: str = Field(default="https://eth.llamarpc.com", alias="BLOCKCHAIN_ETH_RPC_URL")
-    BSC_RPC_URL: str = Field(default="https://bsc-dataseed1.binance.org", alias="BLOCKCHAIN_BSC_RPC_URL")
-    POLYGON_RPC_URL: str = Field(default="https://polygon-rpc.com", alias="BLOCKCHAIN_POLYGON_RPC_URL")
-    SOLANA_RPC_URL: str = Field(default="https://api.mainnet-beta.solana.com", alias="BLOCKCHAIN_SOLANA_RPC_URL")
+    def model_post_init(self, __context):
+        # Fallback if BOT_TOKEN is missing but TG_BOT_TOKEN exists
+        if self.TG_BOT_TOKEN and not self.BOT_TOKEN:
+            self.BOT_TOKEN = self.TG_BOT_TOKEN
 
-    @property
-    def postgres_url(self) -> str:
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD.get_secret_value()}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-
-    @property
-    def redis_url(self) -> str:
-        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
-
-
-@lru_cache()
-def get_settings() -> Settings:
-    return Settings()
-
-
-settings = get_settings()
+settings = Settings()

@@ -17,8 +17,7 @@ def get_database_path() -> str:
     
     # Local development fallback
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_dir, "nexus_wallet.db")
-
+    return os.path.join(base_dir, "data", "nexus_wallet.db")  # Важно: папка data
 
 DATABASE_PATH = get_database_path()
 

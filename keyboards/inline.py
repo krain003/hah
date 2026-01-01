@@ -3,10 +3,11 @@ NEXUS WALLET - Inline Keyboards
 Reusable keyboard components
 """
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from typing import List, Optional
 from blockchain.wallet_manager import NETWORKS
 from locales.messages import get_text
+from config.settings import settings
 
 
 def get_back_keyboard(callback: str, lang: str = "en") -> InlineKeyboardMarkup:
@@ -16,7 +17,7 @@ def get_back_keyboard(callback: str, lang: str = "en") -> InlineKeyboardMarkup:
     ])
 
 
-def get_confirm_keyboard(confirm_callback: str, cancel_callback: str, lang: str = "en") -> InlineKeyboardMarkup:
+def get_confirm_keyboard(confirm_callback: str, cancel_callback: str, lang: str = "en") -> InlineKeyboardMarkup:     
     """Confirm/Cancel keyboard"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -27,7 +28,7 @@ def get_confirm_keyboard(confirm_callback: str, cancel_callback: str, lang: str 
 
 
 def get_networks_keyboard(
-    lang: str = "en", 
+    lang: str = "en",
     action: str = "select",
     user_wallets: Optional[List] = None
 ) -> InlineKeyboardMarkup:
@@ -36,40 +37,46 @@ def get_networks_keyboard(
     row = []
     
     # Filter to only show networks user has wallets for (if provided)
-    available_networks = NETWORKS.keys()
+    available_networks = list(NETWORKS.keys())
     if user_wallets:
         available_networks = [w.network for w in user_wallets if w.network in NETWORKS]
-    
+
     for network_id in available_networks:
         config = NETWORKS.get(network_id)
         if not config:
             continue
-            
+
         btn_text = f"{config.icon} {config.symbol}"
         row.append(InlineKeyboardButton(
             text=btn_text,
             callback_data=f"{action}:{network_id}"
         ))
-        
+
         if len(row) == 3:
             buttons.append(row)
             row = []
-    
+
     if row:
         buttons.append(row)
-    
+
     # Back button
     back_callback = "main_menu" if action in ["send", "receive"] else "wallet"
     buttons.append([
         InlineKeyboardButton(text=get_text("btn_back", lang), callback_data=back_callback)
     ])
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """Main menu keyboard"""
     return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🚀 LAUNCH WEB APP", 
+                web_app=WebAppInfo(url=settings.WEB_APP_URL)
+            )
+        ],
         [
             InlineKeyboardButton(text=get_text("btn_wallet", lang), callback_data="wallet"),
             InlineKeyboardButton(text=get_text("btn_send", lang), callback_data="send"),

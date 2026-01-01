@@ -1,6 +1,6 @@
 """
 NEXUS WALLET - Production Starter
-Guaranteed Database Initialization
+Guaranteed Database Initialization & Dual Service Run
 """
 
 import os
@@ -20,11 +20,17 @@ from main import main as start_bot_logic
 logger = structlog.get_logger()
 
 # Path to database
-DB_DIR = "/app/data"
+# Используем путь /app/data для Railway (persistent volume)
+# Если папки /app нет (локально), используем текущую директорию
+if os.path.exists("/app"):
+    DB_DIR = "/app/data"
+else:
+    DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
 DB_PATH = os.path.join(DB_DIR, "nexus_wallet.db")
 
 def init_database_sync():
-    """Initialize database synchronously using sqlite3"""
+    """Initialize database synchronously using sqlite3 to prevent race conditions"""
     logger.info(f"🛠️ Initializing Database at {DB_PATH}...")
     
     try:
@@ -36,6 +42,7 @@ def init_database_sync():
         cursor = conn.cursor()
         
         # Create Tables
+        # Users
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS web_users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +57,7 @@ def init_database_sync():
             )
         """)
         
+        # Wallets
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS web_wallets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +73,7 @@ def init_database_sync():
             )
         """)
         
+        # Transactions
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS web_transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +95,7 @@ def init_database_sync():
             )
         """)
         
+        # Sessions
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS web_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,12 +120,13 @@ def init_database_sync():
         logger.error(f"❌ Database init failed: {e}")
         return False
 
+# Lifespan for FastAPI
 @asynccontextmanager
 async def lifespan(app):
     # --- STARTUP ---
     logger.info("🚀 Starting NEXUS WALLET Services...")
     
-    # Start Bot in background
+    # Start Bot in background task
     bot_task = asyncio.create_task(start_bot_logic())
     
     yield
@@ -128,14 +139,14 @@ async def lifespan(app):
     except asyncio.CancelledError:
         logger.info("Bot stopped cleanly")
 
-# Attach lifespan
+# Attach lifespan to app
 web_app.router.lifespan_context = lifespan
 
 if __name__ == "__main__":
     # 1. Initialize DB FIRST (Sync)
     init_database_sync()
     
-    # 2. Start Web Server (which starts Bot)
+    # 2. Start Web Server (which starts Bot via lifespan)
     port = int(os.environ.get("PORT", 8000))
     logger.info(f"🌍 Starting Web Server on port {port}")
     
@@ -145,5 +156,5 @@ if __name__ == "__main__":
         port=port,
         log_level="info",
         access_log=True,
-        workers=1
+        workers=1  # Must be 1 to avoid duplicate bots
     )
