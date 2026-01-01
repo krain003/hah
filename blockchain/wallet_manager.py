@@ -246,45 +246,39 @@ class WalletManager:
             derivation_path="m/44'/501'/0'/0'"
         )
     
-    async def _create_ton_wallet(self, mnemonic: str) -> WalletData:
-        """Create TON wallet using tonsdk"""
+    async def _create_ton_wallet(self, mnemonic: str = None) -> WalletData:
+        """Create TON wallet"""
         try:
             from tonsdk.contract.wallet import Wallets, WalletVersionEnum
-            from tonsdk.crypto import mnemonic_is_valid, mnemonic_new
-        except ImportError:
-            raise ImportError(
-                "tonsdk не установлен. Выполните: pip install tonsdk"
+            from tonsdk.crypto import mnemonic_new
+            
+            # Если мнемоника не передана, генерируем новую
+            if not mnemonic:
+                mnemonic_list = mnemonic_new()  # Это синхронная функция
+                mnemonic = " ".join(mnemonic_list)
+            else:
+                mnemonic_list = mnemonic.split()
+
+            # Создание кошелька (Синхронная операция, но быстрая)
+            _mnemo, _pub_key, _priv_key, wallet = Wallets.create(
+                version=WalletVersionEnum.v4r2,
+                workchain=0,
+                mnemonics=mnemonic_list
             )
-        
-        mnemonic_list = mnemonic.split()
-        
-        # Проверяем валидность TON мнемоники
-        if len(mnemonic_list) == 24 and mnemonic_is_valid(mnemonic_list):
-            final_mnemonic_list = mnemonic_list
-        else:
-            # Генерируем новую TON мнемонику (24 слова, TON формат)
-            final_mnemonic_list = mnemonic_new(24)
-        
-        # Создаём кошелек V4R2
-        _mnemo, _pub_key, _priv_key, wallet = Wallets.create(
-            version=WalletVersionEnum.v4r2,
-            workchain=0,
-            mnemonics=final_mnemonic_list
-        )
-        
-        # Получаем адрес (user-friendly, non-bounceable)
-        address = wallet.address.to_string(True, True, False)
-        
-        # Приватный ключ
-        private_key_hex = _priv_key.hex()
-        
-        return WalletData(
-            address=address,
-            private_key=private_key_hex,
-            mnemonic=" ".join(final_mnemonic_list),
-            network="ton",
-            derivation_path="m/44'/607'/0'"
-        )
+            
+            address = wallet.address.to_string(True, True, False)
+            private_key = _priv_key.hex()
+            
+            return WalletData(
+                address=address,
+                private_key=private_key,
+                mnemonic=mnemonic,
+                network="ton",
+                derivation_path="m/44'/607'/0'"
+            )
+        except Exception as e:
+            logger.error(f"TON creation error: {e}")
+            raise e
     
     def _create_tron_wallet(self, mnemonic: str) -> WalletData:
         """Create TRON wallet"""
