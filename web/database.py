@@ -1,6 +1,6 @@
 """
 NEXUS WALLET - Database Manager
-Compatible with Railway.app
+Compatible with Railway.app and SQLite
 """
 
 import aiosqlite
@@ -11,11 +11,11 @@ from datetime import datetime
 # Railway-compatible database path
 def get_database_path() -> str:
     """Get database path - works on Railway and locally"""
-    # Check for Railway volume
+    # Check for Railway volume mount
     if os.path.exists("/app/data"):
         return "/app/data/nexus_wallet.db"
     
-    # Local development
+    # Local development fallback
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_dir, "nexus_wallet.db")
 

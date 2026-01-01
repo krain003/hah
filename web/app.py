@@ -11,19 +11,17 @@ from contextlib import asynccontextmanager
 import os
 import asyncio
 import structlog
-
-# Импортируем функцию запуска бота из корня
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# Импорт main функции бота. ВАЖНО: убедись, что путь верный
-from main import main as start_bot
 
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from main import main as start_bot
 from web.database import init_db
 from web.routes import auth, wallet, api, tg_app
 
 logger = structlog.get_logger()
 
-# Environment
 IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") is not None
 RAILWAY_PUBLIC_DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
 
@@ -31,17 +29,17 @@ RAILWAY_PUBLIC_DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     
-    # 1. Start Database (FORCE INIT)
-    logger.info("🛠️ Initializing Web Database...")
+    # 1. Initialize Database (CRITICAL: Must happen first)
+    logger.info("🛠️ Initializing Database...")
     await init_db()
-    logger.info("✅ Web Database initialized")
+    logger.info("✅ Database initialized successfully")
     
     if RAILWAY_PUBLIC_DOMAIN:
-        logger.info(f"🌐 URL: https://{RAILWAY_PUBLIC_DOMAIN}")
+        logger.info(f"🌐 Public URL: https://{RAILWAY_PUBLIC_DOMAIN}")
 
     # 2. Start Telegram Bot in background
     bot_task = asyncio.create_task(start_bot())
-    logger.info("🤖 Telegram Bot started in background")
+    logger.info("🤖 Telegram Bot starting in background...")
     
     yield
     
@@ -51,7 +49,7 @@ async def lifespan(app: FastAPI):
     try:
         await bot_task
     except asyncio.CancelledError:
-        pass
+        logger.info("Bot stopped cleanly")
 
 app = FastAPI(
     title="NEXUS WALLET",
