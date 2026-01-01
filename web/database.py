@@ -82,6 +82,9 @@ async def init_db():
                 to_address TEXT,
                 from_address TEXT,
                 status TEXT DEFAULT 'pending',
+                token_symbol TEXT,
+                fee_amount TEXT,
+                fee_token TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES web_users(id),
                 FOREIGN KEY (wallet_id) REFERENCES web_wallets(id)
@@ -166,30 +169,6 @@ class UserDB:
 class WalletDB:
     """Wallet database operations"""
     
-    # Добавь этот метод в класс WalletDB:
-
-@staticmethod
-async def get_user_wallet_by_network(user_id: int, network: str) -> Optional[Dict]:
-    async with aiosqlite.connect(DATABASE_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
-            "SELECT * FROM web_wallets WHERE user_id = ? AND network = ?",
-            (user_id, network)
-        )
-        row = await cursor.fetchone()
-        return dict(row) if row else None
-
-@staticmethod
-async def get_wallet_by_address(address: str) -> Optional[Dict]:
-    async with aiosqlite.connect(DATABASE_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
-            "SELECT * FROM web_wallets WHERE address = ?",
-            (address,)
-        )
-        row = await cursor.fetchone()
-        return dict(row) if row else None
-
     @staticmethod
     async def create_wallet(
         user_id: int,
@@ -231,6 +210,28 @@ async def get_wallet_by_address(address: str) -> Optional[Dict]:
             )
             row = await cursor.fetchone()
             return dict(row) if row else None
+            
+    @staticmethod
+    async def get_user_wallet_by_network(user_id: int, network: str) -> Optional[Dict]:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM web_wallets WHERE user_id = ? AND network = ?",
+                (user_id, network)
+            )
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    @staticmethod
+    async def get_wallet_by_address(address: str) -> Optional[Dict]:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM web_wallets WHERE address = ?",
+                (address,)
+            )
+            row = await cursor.fetchone()
+            return dict(row) if row else None
     
     @staticmethod
     async def delete_wallet(wallet_id: int, user_id: int) -> bool:
@@ -256,14 +257,19 @@ class TransactionDB:
         to_address: str = None,
         from_address: str = None,
         tx_hash: str = None,
+        token_symbol: str = None,
+        fee_amount: str = None,
+        fee_token: str = None,
         status: str = "pending"
     ) -> int:
         async with aiosqlite.connect(DATABASE_PATH) as db:
             cursor = await db.execute(
                 """INSERT INTO web_transactions 
-                   (user_id, wallet_id, network, tx_type, amount, to_address, from_address, tx_hash, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (user_id, wallet_id, network, tx_type, amount, to_address, from_address, tx_hash, status)
+                   (user_id, wallet_id, network, tx_type, amount, to_address, from_address, 
+                    tx_hash, token_symbol, fee_amount, fee_token, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (user_id, wallet_id, network, tx_type, amount, to_address, from_address,
+                 tx_hash, token_symbol, fee_amount, fee_token, status)
             )
             await db.commit()
             return cursor.lastrowid
