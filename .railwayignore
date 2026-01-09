@@ -1,0 +1,9 @@
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+.docker/
+*.db
+.env
+__pycache__/
+.venv/
+venv/
