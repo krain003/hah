@@ -1,0 +1,10 @@
+{
+    "maintenance_mode": false,
+    "maintenance_message": "🚧 <b>System Maintenance</b>\n\nWe are updating the bot. Back soon!",
+    "disabled_networks": [],
+    "fees": {
+        "swap_percent": 0.5,
+        "send_fee_usd": 0.5,
+        "p2p_percent": 1.0
+    }
+}

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  nexus-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-dev-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/nexus_wallet.db
+      - DEBUG=true
+    volumes:
+      - .:/app  # Hot reload
+      - ./data:/app/data
+    command: python start.py
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-dev-redis
+    ports:
+      - "6379:6379"

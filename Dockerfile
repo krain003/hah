@@ -1,34 +1,33 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+# 1. Устанавливаем рабочую директорию
+WORKDIR /project
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 2. Устанавливаем системные зависимости (один слой)
+# Мы объединяем команды, чтобы уменьшить размер образа
+RUN apt-get update && apt-get install -y \
     gcc \
-    libffi-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first
+# 3. Сначала копируем ТОЛЬКО файл зависимостей
+# Это самая важная часть для скорости: если требования не менялись, 
+# Docker пропустит установку библиотек при следующем билде
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# 4. Устанавливаем библиотеки с большим таймаутом
+# Используем зеркало (по желанию), если основной сервер тормозит
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 
-# Copy application code
+# 5. Только теперь копируем остальной код проекта
+# Теперь изменения в коде не будут вызывать переустановку библиотек
 COPY . .
 
-# Create data directory
-RUN mkdir -p /app/data
+# 6. Настройка путей
+ENV PYTHONPATH=/project/app
+# Создаем папку для логов, если её нет
+RUN mkdir -p /project/logs
 
-# Expose port
-EXPOSE 8000
-
-# Start application
-CMD ["python", "start.py"]
+# 7. Запуск
+CMD ["python", "app/bot.py"]

@@ -1,0 +1,142 @@
+{% extends "tg/base.html" %}
+
+{% block title %}Pro Trading - NEXUS{% endblock %}
+
+{% block content %}
+<!-- TradingView Chart Script -->
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            <span class="logo-icon">📈</span>
+            <span id="current-pair">BTC/USDT</span>
+        </div>
+        <div class="price-display" id="live-price">Loading...</div>
+    </div>
+</div>
+
+<main class="main" style="padding: 0;">
+    
+    <!-- Chart Container -->
+    <div id="chart-container" style="height: 300px; width: 100%;"></div>
+    
+    <!-- Trading Controls -->
+    <div class="trading-panel" style="padding: 16px;">
+        
+        <!-- Leverage Slider -->
+        <div class="leverage-control">
+            <label>Leverage: <span id="lev-val">x10</span></label>
+            <input type="range" min="1" max="100" value="10" class="slider" id="leverage-slider" oninput="updateLev(this.value)">
+        </div>
+
+        <!-- Inputs -->
+        <div class="trade-inputs">
+            <div class="form-group">
+                <label class="form-label">Margin ($)</label>
+                <input type="number" id="amount" class="form-input" placeholder="100" value="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Position Size</label>
+                <input type="text" id="pos-size" class="form-input" readonly value="$1,000">
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="trade-buttons">
+            <button class="btn btn-success" onclick="placeOrder('LONG')">
+                🚀 LONG (Buy)
+            </button>
+            <button class="btn btn-danger" onclick="placeOrder('SHORT')">
+                🐻 SHORT (Sell)
+            </button>
+        </div>
+        
+        <!-- Positions -->
+        <div class="positions-section" style="margin-top: 24px;">
+            <h3>Open Positions</h3>
+            <div id="positions-list">
+                <!-- JS will inject positions here -->
+                <div class="empty-state-small">No open positions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+        <a href="/tg/" class="nav-item">🏠 Home</a>
+        <a href="/tg/trade" class="nav-item active">📈 Trade</a>
+        <a href="/tg/wallet" class="nav-item">💼 Wallet</a>
+    </nav>
+</main>
+
+<style>
+    .trade-buttons { display: flex; gap: 10px; margin-top: 16px; }
+    .btn-success { background: #22c55e; color: white; width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: bold; }
+    .btn-danger { background: #ef4444; color: white; width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: bold; }
+    .slider { width: 100%; margin: 10px 0; }
+    .trade-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .price-display { font-size: 18px; font-weight: bold; color: #22c55e; }
+</style>
+
+<script>
+    // --- CHART SETUP ---
+    const chart = LightweightCharts.createChart(document.getElementById('chart-container'), {
+        layout: { background: { color: '#12121a' }, textColor: '#d1d5db' },
+        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+        width: document.body.clientWidth,
+        height: 300,
+    });
+    const candleSeries = chart.addCandlestickSeries({
+        upColor: '#22c55e', downColor: '#ef4444', borderVisible: false,
+    });
+
+    // --- LIVE DATA (Binance WebSocket) ---
+    const binanceSocket = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_1m");
+    
+    binanceSocket.onmessage = function (event) {
+        const message = JSON.parse(event.data);
+        const candlestick = message.k;
+        
+        // Update Chart
+        candleSeries.update({
+            time: candlestick.t / 1000,
+            open: parseFloat(candlestick.o),
+            high: parseFloat(candlestick.h),
+            low: parseFloat(candlestick.l),
+            close: parseFloat(candlestick.c),
+        });
+
+        // Update Price Text
+        const price = parseFloat(candlestick.c);
+        const el = document.getElementById('live-price');
+        el.innerText = '$' + price.toFixed(2);
+        el.style.color = candlestick.c >= candlestick.o ? '#22c55e' : '#ef4444';
+    };
+
+    // --- LOGIC ---
+    function updateLev(val) {
+        document.getElementById('lev-val').innerText = 'x' + val;
+        updateSize();
+    }
+
+    document.getElementById('amount').addEventListener('input', updateSize);
+
+    function updateSize() {
+        const amount = parseFloat(document.getElementById('amount').value) || 0;
+        const lev = parseInt(document.getElementById('leverage-slider').value);
+        document.getElementById('pos-size').value = '$' + (amount * lev).toLocaleString();
+    }
+
+    function placeOrder(direction) {
+        const amount = document.getElementById('amount').value;
+        const lev = document.getElementById('leverage-slider').value;
+        
+        // Тут отправляем запрос на твой Backend
+        // fetch('/api/trade/open', ...)
+        
+        showToast(`✅ Opened ${direction} x${lev} for $${amount}`);
+        haptic('success');
+    }
+</script>
+{% endblock %}

@@ -1,62 +1,60 @@
 version: '3.8'
 
 services:
-  bot:
-    build: .
-    container_name: nexus_wallet_bot
-    restart: unless-stopped
-    env_file:
-      - .env
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - nexus_network
-    volumes:
-      - ./logs:/app/logs
-
   postgres:
     image: postgres:15-alpine
-    container_name: nexus_wallet_db
+    container_name: nexus_postgres
     restart: unless-stopped
     environment:
+      # Важно: POSTGRES_DB должен совпадать с именем в DATABASE_URL
       POSTGRES_USER: ${DB_POSTGRES_USER:-nexus}
       POSTGRES_PASSWORD: ${DB_POSTGRES_PASSWORD:-secure_password}
-      POSTGRES_DB: ${DB_POSTGRES_DB:-nexus_wallet}
+      POSTGRES_DB: ${DB_POSTGRES_DB:-nexus} 
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - nexus_network
     ports:
       - "5432:5432"
+    healthcheck:
+      # Добавлена проверка конкретной базы данных (-d)
+      test: ["CMD-SHELL", "pg_isready -U ${DB_POSTGRES_USER:-nexus} -d ${DB_POSTGRES_DB:-nexus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: nexus_wallet_redis
+    container_name: nexus_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    networks:
-      - nexus_network
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Optional: Admin panel
-  adminer:
-    image: adminer
-    container_name: nexus_wallet_adminer
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus_bot
     restart: unless-stopped
-    ports:
-      - "8080:8080"
-    networks:
-      - nexus_network
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${DB_POSTGRES_USER:-nexus}:${DB_POSTGRES_PASSWORD:-secure_password}@postgres:5432/${DB_POSTGRES_DB:-nexus}
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - postgres
-
-networks:
-  nexus_network:
-    driver: bridge
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/project/logs
+      - ./:/project
+    command: python app/bot.py
 
 volumes:
   postgres_data:
