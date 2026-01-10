@@ -1,8 +1,15 @@
+# nixpacks.toml
+
 [phases.setup]
 nixPkgs = ["python311", "gcc", "libffi", "openssl"]
 
 [phases.install]
-cmds = ["pip install --upgrade pip", "pip install -r requirements.txt"]
+cmds = [
+    "python -m venv /opt/venv",
+    ". /opt/venv/bin/activate",
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt"
+]
 
 [start]
-cmd = "python app/main.py"
+cmd = ". /opt/venv/bin/activate && python app/main.py"
