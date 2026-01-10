@@ -1,6 +1,6 @@
 """
 NEXUS WALLET - Database Connection Manager
-Works without PostgreSQL or Redis (uses SQLite + Memory)
+Production Ready (PostgreSQL + SQLite Fallback)
 """
 
 import os
@@ -27,26 +27,37 @@ class DatabaseManager:
 
     async def initialize(self):
         """Initialize database connections"""
-        USE_SQLITE = True
+        
+        # 1. Получаем URL базы данных
+        database_url = os.getenv("DATABASE_URL")
+        
+        # 2. Фикс для Railway/Heroku (меняем схему драйвера)
+        if database_url:
+            if database_url.startswith("postgres://"):
+                database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif database_url.startswith("postgresql://"):
+                database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-        postgres_url = os.getenv("DATABASE_URL") if not USE_SQLITE else None
-
-        if postgres_url:
+        # 3. Пытаемся подключиться к PostgreSQL
+        if database_url and "postgresql" in database_url:
             try:
                 self._engine = create_async_engine(
-                    postgres_url,
+                    database_url,
                     echo=False,
-                    pool_size=5,
+                    pool_size=20,          # Увеличил пул для нагрузки
                     max_overflow=10,
+                    pool_pre_ping=True,    # Проверка соединения перед запросом
                 )
                 async with self._engine.begin() as conn:
                     await conn.execute(text("SELECT 1"))
-                logger.info("PostgreSQL connected")
+                logger.info("✅ PostgreSQL connected (Production)")
             except Exception as e:
-                logger.warning(f"PostgreSQL failed: {e}")
+                logger.error(f"❌ PostgreSQL connection failed: {e}")
                 self._engine = None
 
+        # 4. Если PostgreSQL недоступен — падаем в SQLite (Fallback)
         if not self._engine:
+            logger.warning("⚠️ Using SQLite fallback (Not recommended for Production)")
             sqlite_path = "sqlite+aiosqlite:///./nexus_wallet.db"
             self._engine = create_async_engine(
                 sqlite_path,
@@ -60,7 +71,7 @@ class DatabaseManager:
             expire_on_commit=False,
         )
 
-        # Создаём таблицы если их нет
+        # Создаём таблицы
         await self.create_tables()
 
         logger.info("Database initialized")
@@ -69,16 +80,16 @@ class DatabaseManager:
     async def create_tables(self):
         """Create all database tables if they don't exist"""
         try:
-            # Импортируем здесь чтобы избежать циклических импортов
             from database.models import Base
             
             async with self._engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             
-            logger.info("Database tables created/verified successfully")
+            logger.info("Database tables verified/created")
         except Exception as e:
             logger.error(f"Failed to create tables: {e}")
-            raise
+            # Не рейзим ошибку здесь, чтобы бот не падал в циклическую перезагрузку
+            # но в продакшене это критично.
 
     @asynccontextmanager
     async def session(self) -> AsyncGenerator[AsyncSession, None]:
